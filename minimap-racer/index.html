@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minimap Racer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="screen-select" class="screen active">
+    <h1>Minimap Racer</h1>
+    <p class="subtitle">Wähle deinen Fahrer</p>
+
+    <div class="character-grid">
+      <button class="character-card" data-character="bald">
+        <canvas class="portrait" width="120" height="120" data-portrait="bald"></canvas>
+        <span>Glatze</span>
+      </button>
+      <button class="character-card" data-character="long">
+        <canvas class="portrait" width="120" height="120" data-portrait="long"></canvas>
+        <span>Lange Haare</span>
+      </button>
+    </div>
+
+    <button id="btn-start" class="primary-btn" disabled>Rennen starten</button>
+
+    <div class="how-to">
+      <h2>So funktioniert's</h2>
+      <ul>
+        <li>Dein Einkaufswagen-Racer rollt automatisch los.</li>
+        <li>An Kreuzungen hält er komplett an – drück schnell <span class="key-inline">←</span> oder <span class="key-inline">→</span>, um abzubiegen.</li>
+        <li>Finde den kürzesten Weg zum Ziel und reagier blitzschnell an jeder Kreuzung.</li>
+        <li>💎 Diamant für die schnellste Gesamtzeit · 🥇 Gold für ⌀ 5s Reaktion · 🥈 Silber für ⌀ 10s Reaktion</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="screen-race" class="screen">
+    <div id="hud">
+      <div id="hud-timer">0.0s</div>
+      <div id="hud-junction-count"></div>
+    </div>
+    <div id="decision-banner" class="hidden">
+      <div class="decision-text">JETZT ABBIEGEN!</div>
+      <div class="decision-keys">
+        <span class="key key-left">←</span>
+        <span class="key key-right">→</span>
+      </div>
+      <div class="decision-timerbar"><div id="decision-timerbar-fill"></div></div>
+    </div>
+    <canvas id="race-canvas"></canvas>
+  </section>
+
+  <section id="screen-result" class="screen">
+    <h1>Ziel erreicht!</h1>
+    <div id="medal-badge"></div>
+    <div id="result-stats"></div>
+    <button id="btn-retry" class="primary-btn">Nochmal fahren</button>
+    <button id="btn-back" class="secondary-btn">Fahrer wechseln</button>
+  </section>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>
