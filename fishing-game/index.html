@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blitzangler</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="screen-select" class="screen active">
+    <h1>Blitzangler</h1>
+    <p class="subtitle">Wähle deinen Angler</p>
+
+    <div class="character-grid">
+      <button class="character-card" data-character="bald">
+        <canvas class="portrait" width="120" height="120" data-portrait="bald"></canvas>
+        <span>Glatze</span>
+      </button>
+      <button class="character-card" data-character="long">
+        <canvas class="portrait" width="120" height="120" data-portrait="long"></canvas>
+        <span>Lange Haare</span>
+      </button>
+    </div>
+
+    <button id="btn-start" class="primary-btn" disabled>Angeln starten</button>
+
+    <div class="how-to">
+      <h2>So funktioniert's</h2>
+      <ul>
+        <li>Wirf die Angel aus und warte, bis ein Fisch anbeißt.</li>
+        <li>Dann erscheint eine Tastenfolge (←↑↓→) – drück sie in der richtigen Reihenfolge nach.</li>
+        <li>Je länger die Fischfolge, desto größer und schwerer der Fisch – und desto mehr Punkte gibt's.</li>
+        <li>Mit jedem Tastendruck wird die Zeit für den nächsten knapper – der Fisch wehrt sich!</li>
+        <li>Verpasst du eine Taste, zieht dich der Fisch in den Fluss – und du musst neu werfen.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="screen-game" class="screen">
+    <button id="btn-exit-game" title="Angeln beenden" aria-label="Angeln beenden">✕</button>
+    <div id="hud">
+      <div id="hud-score">0 Punkte</div>
+      <div id="hud-catches">0 Fische</div>
+    </div>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="status-text" class="status-text"></div>
+
+    <div id="qte-panel" class="hidden">
+      <div id="qte-keys"></div>
+      <div class="qte-timerbar"><div id="qte-timerbar-fill"></div></div>
+    </div>
+
+    <div id="outcome-panel" class="hidden">
+      <div id="outcome-title"></div>
+      <div id="outcome-details"></div>
+      <button id="btn-continue" class="primary-btn">Weiter angeln</button>
+    </div>
+  </section>
+
+  <section id="screen-summary" class="screen">
+    <h1>Angeltag beendet</h1>
+    <div id="summary-stats"></div>
+    <div id="catch-list"></div>
+    <div class="result-actions">
+      <button id="btn-restart" class="primary-btn">Nochmal angeln</button>
+      <button id="btn-change-angler" class="secondary-btn">Angler wechseln</button>
+    </div>
+  </section>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>
