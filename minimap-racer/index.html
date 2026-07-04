@@ -29,6 +29,7 @@
     <div class="how-to">
       <h2>So funktioniert's</h2>
       <ul>
+        <li>5 Level, jedes schwieriger als das letzte: mehr Kreuzungen, mehr Tempo, weniger Bremsweg.</li>
         <li>Dein Einkaufswagen-Racer rollt automatisch los.</li>
         <li>An Kreuzungen hält er komplett an – drück schnell <span class="key-inline">←</span> oder <span class="key-inline">→</span>, um abzubiegen.</li>
         <li>Finde den kürzesten Weg zum Ziel und reagier blitzschnell an jeder Kreuzung.</li>
@@ -40,6 +41,7 @@
   <section id="screen-race" class="screen">
     <button id="btn-exit-race" title="Rennen verlassen" aria-label="Rennen verlassen">✕</button>
     <div id="hud">
+      <div id="hud-level"></div>
       <div id="hud-timer">0.0s</div>
       <div id="hud-junction-count"></div>
     </div>
@@ -55,11 +57,23 @@
   </section>
 
   <section id="screen-result" class="screen">
-    <h1>Ziel erreicht!</h1>
+    <h1 id="result-heading">Level geschafft!</h1>
     <div id="medal-badge"></div>
     <div id="result-stats"></div>
-    <button id="btn-retry" class="primary-btn">Nochmal fahren</button>
-    <button id="btn-back" class="secondary-btn">Fahrer wechseln</button>
+    <div class="result-actions">
+      <button id="btn-retry" class="secondary-btn">Nochmal fahren</button>
+      <button id="btn-next" class="primary-btn">Nächstes Level</button>
+    </div>
+    <button id="btn-back" class="text-btn">Zurück zur Fahrerauswahl</button>
+  </section>
+
+  <section id="screen-overview" class="screen">
+    <h1>Alle 5 Level geschafft!</h1>
+    <div id="overview-list"></div>
+    <div class="result-actions">
+      <button id="btn-restart-all" class="primary-btn">Nochmal von vorne</button>
+      <button id="btn-change-driver" class="secondary-btn">Fahrer wechseln</button>
+    </div>
   </section>
 
 </div>
