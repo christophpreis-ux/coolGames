@@ -2,18 +2,18 @@
 
 /* =========================================================================
    Minimap Racer
-   Das gesamte Spielfeld IST die Minimap: eine feste, ans Fenster angepasste
-   Draufsicht auf die Strecke. Der Wagen fährt automatisch, an Kreuzungen
-   muss per ←/→ die Abbiegerichtung gewählt werden, bevor es weitergeht.
-   5 Level mit steigender Schwierigkeit (mehr Kreuzungen, mehr Tempo,
-   weniger Brems-/Beschleunigungsweg), am Ende eine Gesamtübersicht.
+   Der Wagen fährt automatisch, an Kreuzungen muss per ←/→ (manchmal auch ↑
+   für geradeaus) die Richtung gewählt werden, bevor es weitergeht. 3 lange,
+   zunehmend schwierigere Level. Weil die Strecken lang sind, folgt die
+   Kamera dem Wagen; eine kleine Übersichtskarte in der Ecke zeigt die
+   gesamte Strecke, damit man die Orientierung nicht verliert.
    ========================================================================= */
 
 // ---------------------------------------------------------------------
 // Track-Builder: baut einen Knoten/Kanten-Graphen aus einer Kette von
-// geraden Stücken und Gabelungen (Kreuzung -> zwei Äste -> Zusammenführung).
-// Arbeitet mit einer laufenden Fahrtrichtung, damit Level auch Kurven
-// enthalten können (nicht nur rein horizontale Strecken).
+// geraden Stücken und Gabelungen (Kreuzung -> 2 oder 3 Äste -> Zusammen-
+// führung). Arbeitet mit einer laufenden Fahrtrichtung, damit Level auch
+// Kurven enthalten können (nicht nur rein horizontale Strecken).
 // ---------------------------------------------------------------------
 
 function vecFromAngleDeg(deg) {
@@ -52,25 +52,25 @@ function createTrackBuilder(startHeadingDeg) {
   }
 
   // approach: Strecke von der aktuellen Position bis zur Kreuzung.
-  // aFwd/aLat, bFwd/bLat: Position der beiden Äste relativ zur Kreuzung
+  // branches: 2 oder 3 Äste, je { fwd, lat } relativ zur Kreuzung
   // (Fwd = entlang der Fahrtrichtung, Lat = seitlich versetzt).
   // mFwd: wie weit die Zusammenführung (auf der Mittellinie) danach liegt.
-  function fork(prefix, { approach, aFwd = 0, aLat, bFwd = 0, bLat, mFwd }) {
-    const jId = prefix + "J", aId = prefix + "A", bId = prefix + "B", mId = prefix + "M";
+  function fork(prefix, { approach, mFwd, branches }) {
+    const jId = prefix + "J", mId = prefix + "M";
     const perp = perpOf(heading);
 
     nodes[jId] = movePoint(nodes[cur], heading, approach);
     edgeDefs.push([cur, jId]);
 
-    nodes[aId] = movePoint(movePoint(nodes[jId], heading, aFwd), perp, -aLat);
-    edgeDefs.push([jId, aId]);
-
-    nodes[bId] = movePoint(movePoint(nodes[jId], heading, bFwd), perp, bLat);
-    edgeDefs.push([jId, bId]);
+    const branchIds = branches.map((br, i) => {
+      const id = prefix + "B" + i;
+      nodes[id] = movePoint(movePoint(nodes[jId], heading, br.fwd || 0), perp, br.lat);
+      edgeDefs.push([jId, id]);
+      return id;
+    });
 
     nodes[mId] = movePoint(nodes[jId], heading, mFwd);
-    edgeDefs.push([aId, mId]);
-    edgeDefs.push([bId, mId]);
+    for (const id of branchIds) edgeDefs.push([id, mId]);
 
     cur = mId;
   }
@@ -82,87 +82,90 @@ function createTrackBuilder(startHeadingDeg) {
   return { nodes, edgeDefs, straight, turn, fork, finish };
 }
 
+// Kleine Helfer, um Gabelungen mit 2 bzw. 3 Ästen bequem zu beschreiben.
+function twoWay(approach, shortLat, longFwd, longLat, mFwd) {
+  return {
+    approach, mFwd,
+    branches: [
+      { fwd: 0, lat: -shortLat },
+      { fwd: longFwd, lat: longLat },
+    ],
+  };
+}
+
+function threeWay(approach, leftLat, straightFwd, rightFwd, rightLat, mFwd) {
+  return {
+    approach, mFwd,
+    branches: [
+      { fwd: 0, lat: -leftLat },
+      { fwd: straightFwd, lat: 0 },
+      { fwd: rightFwd, lat: rightLat },
+    ],
+  };
+}
+
 // ---------------------------------------------------------------------
-// Level-Definitionen: 5 Strecken mit steigender Schwierigkeit.
-// Schwieriger = mehr Kreuzungen, höheres Tempo, kürzerer Brems-/
-// Beschleunigungsweg, längere Umwege bei falscher Abzweigung.
+// Level-Definitionen: 3 lange Strecken mit steigender Schwierigkeit.
+// Schwieriger = mehr Kreuzungen (teils mit 3 Abzweigungen), höheres Tempo,
+// kürzerer Brems-/Beschleunigungsweg, mehr Kurven im Streckenverlauf.
 // ---------------------------------------------------------------------
 
 const LEVEL_DEFS = [
   {
     name: "Level 1 – Einstieg",
-    cruiseSpeed: 360,
-    decelDist: 150,
-    accelDist: 150,
+    cruiseSpeed: 380,
+    decelDist: 130,
+    accelDist: 130,
     build() {
       const b = createTrackBuilder(0);
-      b.fork("f1", { approach: 260, aLat: 210, bLat: 300, mFwd: 300 });
-      b.fork("f2", { approach: 240, aLat: 220, bFwd: 100, bLat: 340, mFwd: 260 });
+      b.fork("f1", twoWay(280, 220, 120, 340, 320));
+      b.fork("f2", threeWay(240, 240, 260, 140, 380, 320));
+      b.fork("f3", twoWay(220, 230, 130, 360, 300));
+      b.fork("f4", twoWay(200, 240, 140, 380, 300));
+      b.fork("f5", twoWay(180, 250, 150, 400, 280));
       b.finish(220);
       return b;
     },
   },
   {
-    name: "Level 2 – Aufwärmen",
-    cruiseSpeed: 390,
-    decelDist: 140,
-    accelDist: 140,
+    name: "Level 2 – Volles Tempo",
+    cruiseSpeed: 420,
+    decelDist: 115,
+    accelDist: 115,
     build() {
       const b = createTrackBuilder(0);
-      b.fork("f1", { approach: 300, aLat: 280, bLat: 400, mFwd: 350 });
-      b.fork("f2", { approach: 250, aLat: 270, bFwd: 150, bLat: 450, mFwd: 350 });
-      b.fork("f3", { approach: 100, aLat: 270, bFwd: 150, bLat: 450, mFwd: 300 });
-      b.finish(150);
+      b.fork("f1", twoWay(300, 260, 140, 400, 340));
+      b.fork("f2", threeWay(260, 260, 280, 150, 420, 340));
+      b.fork("f3", twoWay(220, 250, 140, 400, 320));
+      b.fork("f4", twoWay(200, 260, 150, 420, 320));
+      b.turn(60);
+      b.fork("f5", threeWay(240, 270, 290, 160, 440, 340));
+      b.fork("f6", twoWay(200, 260, 150, 420, 300));
+      b.fork("f7", twoWay(180, 270, 160, 440, 300));
+      b.finish(200);
       return b;
     },
   },
   {
-    name: "Level 3 – Volles Tempo",
-    cruiseSpeed: 415,
-    decelDist: 130,
-    accelDist: 130,
+    name: "Level 3 – Meisterklasse",
+    cruiseSpeed: 460,
+    decelDist: 100,
+    accelDist: 100,
     build() {
       const b = createTrackBuilder(0);
-      b.fork("f1", { approach: 300, aLat: 280, bLat: 400, mFwd: 350 });
-      b.fork("f2", { approach: 250, aLat: 270, bFwd: 150, bLat: 450, mFwd: 350 });
-      b.fork("f3", { approach: 150, aLat: 270, bFwd: 150, bLat: 450, mFwd: 300 });
-      b.fork("f4", { approach: 150, aLat: 280, bFwd: 170, bLat: 500, mFwd: 320 });
-      b.finish(180);
-      return b;
-    },
-  },
-  {
-    name: "Level 4 – Präzision",
-    cruiseSpeed: 440,
-    decelDist: 120,
-    accelDist: 120,
-    build() {
-      const b = createTrackBuilder(0);
-      b.fork("f1", { approach: 280, aLat: 280, bLat: 400, mFwd: 320 });
-      b.fork("f2", { approach: 220, aLat: 270, bFwd: 150, bLat: 450, mFwd: 320 });
-      b.fork("f3", { approach: 130, aLat: 270, bFwd: 150, bLat: 450, mFwd: 280 });
-      b.fork("f4", { approach: 130, aLat: 280, bFwd: 170, bLat: 500, mFwd: 300 });
-      b.fork("f5", { approach: 130, aLat: 290, bFwd: 190, bLat: 560, mFwd: 300 });
-      b.finish(170);
-      return b;
-    },
-  },
-  {
-    name: "Level 5 – Meisterklasse",
-    cruiseSpeed: 465,
-    decelDist: 110,
-    accelDist: 110,
-    build() {
-      const b = createTrackBuilder(0);
-      b.fork("f1", { approach: 260, aLat: 280, bLat: 400, mFwd: 300 });
-      b.fork("f2", { approach: 200, aLat: 270, bFwd: 150, bLat: 450, mFwd: 300 });
-      b.fork("f3", { approach: 120, aLat: 270, bFwd: 150, bLat: 450, mFwd: 260 });
+      b.fork("f1", twoWay(280, 270, 150, 420, 320));
+      b.fork("f2", threeWay(240, 270, 290, 160, 440, 340));
+      b.fork("f3", twoWay(200, 260, 150, 420, 300));
       b.turn(55);
-      b.fork("f4", { approach: 220, aLat: 280, bFwd: 170, bLat: 480, mFwd: 280 });
-      b.turn(-70);
-      b.fork("f5", { approach: 200, aLat: 280, bFwd: 180, bLat: 500, mFwd: 280 });
-      b.fork("f6", { approach: 120, aLat: 290, bFwd: 190, bLat: 540, mFwd: 280 });
-      b.finish(160);
+      b.fork("f4", twoWay(220, 270, 160, 440, 320));
+      b.fork("f5", threeWay(220, 280, 300, 170, 460, 340));
+      b.turn(-65);
+      b.fork("f6", twoWay(220, 270, 160, 440, 320));
+      b.fork("f7", twoWay(200, 280, 170, 460, 300));
+      b.turn(40);
+      b.fork("f8", threeWay(220, 280, 300, 170, 460, 340));
+      b.fork("f9", twoWay(180, 270, 160, 440, 300));
+      b.finish(200);
       return b;
     },
   },
@@ -355,6 +358,7 @@ const car = {
   y: 0,
   heading: 0,
   pendingLeft: null,
+  pendingStraight: null,
   pendingRight: null,
 };
 
@@ -388,6 +392,7 @@ const hudTimer = document.getElementById("hud-timer");
 const hudLevel = document.getElementById("hud-level");
 const hudJunctionCount = document.getElementById("hud-junction-count");
 const decisionBanner = document.getElementById("decision-banner");
+const keyStraightEl = document.querySelector(".key-straight");
 const decisionTimerFill = document.getElementById("decision-timerbar-fill");
 const medalBadge = document.getElementById("medal-badge");
 const resultStats = document.getElementById("result-stats");
@@ -560,43 +565,78 @@ btnRestartAll.addEventListener("click", () => {
 btnChangeDriver.addEventListener("click", () => showScreen("select"));
 
 // ---------------------------------------------------------------------
-// Canvas sizing + world-to-screen transform (statische Gesamtkarten-Ansicht)
+// Kamera: folgt dem Wagen (die Strecken sind zu lang für eine feste
+// Gesamtansicht). Dazu eine kleine Mini-Übersichtskarte in der Ecke,
+// die immer die komplette Strecke zeigt, damit die Orientierung nicht
+// verloren geht.
 // ---------------------------------------------------------------------
 
-let view = { scale: 1, offsetX: 0, offsetY: 0 };
+const DESIRED_VISIBLE_WORLD_WIDTH = 1000; // Weltbreite, die auf den Bildschirm passen soll
+const CAMERA_LOOKAHEAD = 160;
+const CAMERA_SMOOTHING = 6; // höher = die Kamera folgt strammer
 
-function computeView() {
-  const pad = 120;
+let mainScale = 1;
+let view = { scale: 1, offsetX: 0, offsetY: 0 };
+let insetView = null;
+let camera = { x: 0, y: 0 };
+
+function project(v, x, y) {
+  return [x * v.scale + v.offsetX, y * v.scale + v.offsetY];
+}
+
+function worldToScreen(x, y) {
+  return project(view, x, y);
+}
+
+function computeInsetView() {
+  const rectW = canvas.width * 0.2;
+  const rectH = canvas.height * 0.22;
+  const margin = canvas.width * 0.018;
+  const rectX = canvas.width - rectW - margin;
+  const rectY = margin;
+
+  const pad = 60;
   const xs = Object.values(currentLevel.nodes).map((n) => n.x);
   const ys = Object.values(currentLevel.nodes).map((n) => n.y);
   const minX = Math.min(...xs) - pad;
   const maxX = Math.max(...xs) + pad;
   const minY = Math.min(...ys) - pad;
   const maxY = Math.max(...ys) + pad;
-
   const worldW = maxX - minX;
   const worldH = maxY - minY;
 
-  const scale = Math.min(canvas.width / worldW, canvas.height / worldH);
-  const offsetX = (canvas.width - worldW * scale) / 2 - minX * scale;
-  const offsetY = (canvas.height - worldH * scale) / 2 - minY * scale;
+  const scale = Math.min(rectW / worldW, rectH / worldH);
+  const offsetX = rectX + (rectW - worldW * scale) / 2 - minX * scale;
+  const offsetY = rectY + (rectH - worldH * scale) / 2 - minY * scale;
 
-  view = { scale, offsetX, offsetY };
-}
-
-function worldToScreen(x, y) {
-  return [x * view.scale + view.offsetX, y * view.scale + view.offsetY];
+  insetView = { scale, offsetX, offsetY, rectX, rectY, rectW, rectH };
 }
 
 function resizeCanvas() {
   canvas.width = canvas.clientWidth * devicePixelRatio;
   canvas.height = canvas.clientHeight * devicePixelRatio;
-  computeView();
+  mainScale = canvas.width / DESIRED_VISIBLE_WORLD_WIDTH;
+  computeInsetView();
 }
 
 window.addEventListener("resize", () => {
   if (screens.race.classList.contains("active")) resizeCanvas();
 });
+
+function updateCamera(dt) {
+  const focusX = car.x + Math.cos(car.heading) * CAMERA_LOOKAHEAD;
+  const focusY = car.y + Math.sin(car.heading) * CAMERA_LOOKAHEAD;
+
+  const smoothing = 1 - Math.exp(-CAMERA_SMOOTHING * dt);
+  camera.x += (focusX - camera.x) * smoothing;
+  camera.y += (focusY - camera.y) * smoothing;
+
+  view = {
+    scale: mainScale,
+    offsetX: canvas.width / 2 - camera.x * mainScale,
+    offsetY: canvas.height / 2 - camera.y * mainScale,
+  };
+}
 
 // ---------------------------------------------------------------------
 // Race setup / loop
@@ -612,6 +652,9 @@ function startLevel(index) {
   car.speed = currentLevel.cruiseSpeed;
   car.distanceTraveled = 0;
   [car.x, car.y] = [currentLevel.nodes[START_NODE].x, currentLevel.nodes[START_NODE].y];
+  car.heading = 0;
+  camera.x = car.x;
+  camera.y = car.y;
 
   raceStartTime = performance.now();
   raceElapsed = 0;
@@ -635,30 +678,39 @@ function exitRace() {
   showScreen("select");
 }
 
-// Bestimmt per Kreuzprodukt, welcher der beiden Äste an einer Kreuzung
-// "links" bzw. "rechts" ist – relativ zur Richtung, aus der man kommt.
-// Funktioniert unabhängig von der absoluten Fahrtrichtung, also auch in
-// Kurven (siehe Level 5).
-function resolveJunctionSides(level, incomingEdge) {
+// Bestimmt per Winkel zur Einfahrtsrichtung, welcher Ast an einer Kreuzung
+// "links", "geradeaus" bzw. "rechts" ist. Funktioniert unabhängig von der
+// absoluten Fahrtrichtung (auch in Kurven, siehe Level 2/3) und mit
+// beliebig vielen Ästen (wir nutzen 2 oder 3).
+function resolveJunctionOptions(level, incomingEdge) {
   const from = level.nodes[incomingEdge.from];
   const to = level.nodes[incomingEdge.to];
-  const inDir = { x: to.x - from.x, y: to.y - from.y };
+  const inAngle = Math.atan2(to.y - from.y, to.x - from.x);
 
-  const options = level.outgoing[incomingEdge.to];
-  const [e1, e2] = options;
-  const p1 = level.nodes[e1.from], q1 = level.nodes[e1.to];
-  const dir1 = { x: q1.x - p1.x, y: q1.y - p1.y };
-  const cross = inDir.x * dir1.y - inDir.y * dir1.x;
+  const options = level.outgoing[incomingEdge.to].map((e) => {
+    const p = level.nodes[e.from], q = level.nodes[e.to];
+    let rel = Math.atan2(q.y - p.y, q.x - p.x) - inAngle;
+    while (rel > Math.PI) rel -= Math.PI * 2;
+    while (rel <= -Math.PI) rel += Math.PI * 2;
+    return { edge: e, rel };
+  });
+  options.sort((a, b) => a.rel - b.rel);
 
-  return cross < 0 ? { left: e1, right: e2 } : { left: e2, right: e1 };
+  if (options.length === 2) {
+    return { left: options[0].edge, straight: null, right: options[1].edge };
+  }
+  return { left: options[0].edge, straight: options[1].edge, right: options[options.length - 1].edge };
 }
 
 function enterWaitingAtJunction() {
   car.state = "waiting";
   car.speed = 0;
-  const sides = resolveJunctionSides(currentLevel, car.edge);
-  car.pendingLeft = sides.left;
-  car.pendingRight = sides.right;
+  const options = resolveJunctionOptions(currentLevel, car.edge);
+  car.pendingLeft = options.left;
+  car.pendingStraight = options.straight;
+  car.pendingRight = options.right;
+
+  keyStraightEl.classList.toggle("hidden", !options.straight);
 
   reactionStartTime = performance.now();
   decisionBanner.classList.remove("hidden");
@@ -673,7 +725,7 @@ function enterWaitingAtJunction() {
 
 function chooseDirection(side) {
   if (car.state !== "waiting") return;
-  const chosen = side === "left" ? car.pendingLeft : car.pendingRight;
+  const chosen = side === "left" ? car.pendingLeft : side === "right" ? car.pendingRight : car.pendingStraight;
   if (!chosen) return;
 
   const reactionTime = (performance.now() - reactionStartTime) / 1000;
@@ -692,6 +744,8 @@ window.addEventListener("keydown", (e) => {
     chooseDirection("left");
   } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
     chooseDirection("right");
+  } else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+    chooseDirection("straight");
   }
 });
 
@@ -721,13 +775,12 @@ function finishRace() {
 // Rendering
 // ---------------------------------------------------------------------
 
-function drawRoadNetwork() {
+function drawRoadNetwork(v, roadWidth, centerLineWidth) {
   ctx.lineCap = "round";
-  const roadWidth = Math.max(14, 30 * view.scale);
 
   for (const edge of currentLevel.edges) {
-    const [x1, y1] = worldToScreen(currentLevel.nodes[edge.from].x, currentLevel.nodes[edge.from].y);
-    const [x2, y2] = worldToScreen(currentLevel.nodes[edge.to].x, currentLevel.nodes[edge.to].y);
+    const [x1, y1] = project(v, currentLevel.nodes[edge.from].x, currentLevel.nodes[edge.from].y);
+    const [x2, y2] = project(v, currentLevel.nodes[edge.to].x, currentLevel.nodes[edge.to].y);
 
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -736,37 +789,37 @@ function drawRoadNetwork() {
     ctx.lineWidth = roadWidth;
     ctx.stroke();
 
-    // Mittellinie
-    ctx.setLineDash([roadWidth * 0.4, roadWidth * 0.5]);
-    ctx.strokeStyle = "#f2d24b";
-    ctx.lineWidth = Math.max(1.5, roadWidth * 0.06);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (centerLineWidth > 0) {
+      ctx.setLineDash([roadWidth * 0.4, roadWidth * 0.5]);
+      ctx.strokeStyle = "#f2d24b";
+      ctx.lineWidth = centerLineWidth;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 }
 
-function drawNodes() {
+function drawNodes(v, dotRadius) {
   for (const [id, n] of Object.entries(currentLevel.nodes)) {
-    const [x, y] = worldToScreen(n.x, n.y);
+    const [x, y] = project(v, n.x, n.y);
 
     if (id === START_NODE) {
       ctx.fillStyle = "#4bd07a";
       ctx.beginPath();
-      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.arc(x, y, dotRadius * 1.4, 0, Math.PI * 2);
       ctx.fill();
     } else if (id === FINISH_NODE) {
-      drawCheckerFlag(x, y);
+      drawCheckerFlag(x, y, dotRadius * 2.5);
     } else if (isJunction(currentLevel, id)) {
       ctx.fillStyle = "#f2994a";
       ctx.beginPath();
-      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 }
 
-function drawCheckerFlag(x, y) {
-  const size = 18;
+function drawCheckerFlag(x, y, size) {
   const rows = 4, cols = 4;
   const cell = size / rows;
   ctx.save();
@@ -780,16 +833,45 @@ function drawCheckerFlag(x, y) {
   ctx.restore();
 }
 
+function drawMinimapInset() {
+  const v = insetView;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(v.rectX, v.rectY, v.rectW, v.rectH);
+  ctx.clip();
+
+  ctx.fillStyle = "rgba(15,17,20,0.88)";
+  ctx.fillRect(v.rectX, v.rectY, v.rectW, v.rectH);
+
+  drawRoadNetwork(v, Math.max(2, v.scale * 22), 0);
+  drawNodes(v, Math.max(2, v.scale * 7));
+
+  const [cx, cy] = project(v, car.x, car.y);
+  ctx.fillStyle = "#f4f6f8";
+  ctx.beginPath();
+  ctx.arc(cx, cy, Math.max(3, v.scale * 10), 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(v.rectX, v.rectY, v.rectW, v.rectH);
+}
+
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#14171b";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawRoadNetwork();
-  drawNodes();
+  const roadWidth = Math.max(14, 30 * view.scale);
+  drawRoadNetwork(view, roadWidth, Math.max(1.5, roadWidth * 0.06));
+  drawNodes(view, Math.max(4, 8 * view.scale));
 
   const [sx, sy] = worldToScreen(car.x, car.y);
   drawCart(ctx, sx, sy, car.heading, selectedCharacter || "bald");
+
+  drawMinimapInset();
 }
 
 // ---------------------------------------------------------------------
@@ -811,6 +893,7 @@ function loop(now) {
   lastFrameTime = now;
 
   updateCar(dt);
+  updateCamera(dt);
   render();
   updateHud();
 

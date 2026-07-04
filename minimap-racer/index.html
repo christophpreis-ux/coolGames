@@ -29,9 +29,9 @@
     <div class="how-to">
       <h2>So funktioniert's</h2>
       <ul>
-        <li>5 Level, jedes schwieriger als das letzte: mehr Kreuzungen, mehr Tempo, weniger Bremsweg.</li>
-        <li>Dein Einkaufswagen-Racer rollt automatisch los.</li>
-        <li>An Kreuzungen hält er komplett an – drück schnell <span class="key-inline">←</span> oder <span class="key-inline">→</span>, um abzubiegen.</li>
+        <li>3 lange Level, jedes deutlich schwieriger als das letzte: mehr Kreuzungen, mehr Tempo, weniger Bremsweg.</li>
+        <li>Dein Einkaufswagen-Racer rollt automatisch los. Die Kamera folgt ihm – oben rechts siehst du die ganze Strecke in einer kleinen Übersicht.</li>
+        <li>An Kreuzungen hält er komplett an – drück schnell <span class="key-inline">←</span> oder <span class="key-inline">→</span>, manchmal auch <span class="key-inline">↑</span> für geradeaus (bei 3 Abzweigungen).</li>
         <li>Finde den kürzesten Weg zum Ziel und reagier blitzschnell an jeder Kreuzung.</li>
         <li>💎 Diamant für die schnellste Gesamtzeit · 🥇 Gold für ⌀ 5s Reaktion · 🥈 Silber für ⌀ 10s Reaktion</li>
       </ul>
@@ -49,6 +49,7 @@
       <div class="decision-text">JETZT ABBIEGEN!</div>
       <div class="decision-keys">
         <span class="key key-left">←</span>
+        <span class="key key-straight hidden">↑</span>
         <span class="key key-right">→</span>
       </div>
       <div class="decision-timerbar"><div id="decision-timerbar-fill"></div></div>
@@ -68,7 +69,7 @@
   </section>
 
   <section id="screen-overview" class="screen">
-    <h1>Alle 5 Level geschafft!</h1>
+    <h1>Alle 3 Level geschafft!</h1>
     <div id="overview-list"></div>
     <div class="result-actions">
       <button id="btn-restart-all" class="primary-btn">Nochmal von vorne</button>
