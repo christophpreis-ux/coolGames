@@ -240,6 +240,7 @@ const screens = {
 const btnStart = document.getElementById("btn-start");
 const btnRetry = document.getElementById("btn-retry");
 const btnBack = document.getElementById("btn-back");
+const btnExitRace = document.getElementById("btn-exit-race");
 const hudTimer = document.getElementById("hud-timer");
 const hudJunctionCount = document.getElementById("hud-junction-count");
 const decisionBanner = document.getElementById("decision-banner");
@@ -398,6 +399,7 @@ btnStart.addEventListener("click", () => {
 
 btnRetry.addEventListener("click", () => startRace());
 btnBack.addEventListener("click", () => showScreen("select"));
+btnExitRace.addEventListener("click", () => exitRace());
 
 // ---------------------------------------------------------------------
 // Canvas sizing + world-to-screen transform (statische Gesamtkarten-Ansicht)
@@ -466,6 +468,12 @@ function startRace() {
     lastFrameTime = performance.now();
     requestAnimationFrame(loop);
   });
+}
+
+function exitRace() {
+  car.state = "idle";
+  decisionBanner.classList.add("hidden");
+  showScreen("select");
 }
 
 function currentUpcomingJunctionEdges() {
@@ -631,7 +639,7 @@ function loop(now) {
   render();
   updateHud();
 
-  if (car.state !== "finished") {
+  if (car.state === "driving" || car.state === "waiting") {
     requestAnimationFrame(loop);
   }
 }
