@@ -4,50 +4,99 @@
    Blitzangler
    Angel auswerfen, warten bis ein Fisch anbeißt, dann eine Tastenfolge
    (←↑↓→) in der richtigen Reihenfolge nachdrücken, bevor die Zeit abläuft.
-   Je länger die Folge, desto größer/schwerer der Fisch und desto mehr
-   Punkte gibt's. Mit jedem Tastendruck wird das Zeitfenster für den
-   nächsten knapper. Verpasst du eine Taste, fällst du in den Fluss.
+   8 echte Fischarten von Rotfeder bis Blauwal, jede mit eigener Anzahl an
+   Tastendrücken, Gewicht und Punkten. Mit jedem Tastendruck wird das
+   Zeitfenster für den nächsten knapper. Verpasst du eine Taste, fällst du
+   in den Fluss. Nach einem Fang hältst du ihn erst über den Kopf, bevor
+   die Statistik erscheint. Im Angelladen kannst du bessere Ruten kaufen,
+   die weniger Tastendrücke brauchen und mehr Zeit geben.
    ========================================================================= */
 
 const DIRECTIONS = ["left", "up", "down", "right"];
 const DIRECTION_ARROWS = { left: "←", up: "↑", down: "↓", right: "→" };
 
-const MIN_SEQ_LEN = 2;
-const MAX_SEQ_LEN = 9;
-const INITIAL_KEY_TIME = 1.3;   // Sekunden für den ersten Tastendruck
-const KEY_TIME_DECAY = 0.86;    // Faktor, um den das Zeitfenster je Druck schrumpft
-const MIN_KEY_TIME = 0.4;       // Zeitfenster schrumpft nie unter diesen Wert
 const BITE_WAIT_MIN = 1.2;
 const BITE_WAIT_MAX = 3.4;
+const FAIL_ANIM_DURATION = 0.9;
+const SUCCESS_JUMP_DURATION = 0.7;
+const SUCCESS_HOLD_DURATION = 1.0;
+
+// 8 real fish species, ordered by difficulty. More required key presses ->
+// heavier fish -> more points. The blue whale is the rare, legendary catch.
+const FISH_SPECIES = [
+  { id: "rotfeder", name: "Rotfeder", presses: 2, weight: [80, 350], unit: "g",
+    points: 60, rarity: 30, emoji: "🐟", color: "#9fb8c9", colorDark: "#6f8fa3", sizeScale: 0.7 },
+  { id: "barsch", name: "Flussbarsch", presses: 3, weight: [150, 700], unit: "g",
+    points: 110, rarity: 24, emoji: "🐟", color: "#7fae6a", colorDark: "#557a45", sizeScale: 0.85 },
+  { id: "karpfen", name: "Karpfen", presses: 4, weight: [1.5, 8], unit: "kg",
+    points: 180, rarity: 18, emoji: "🐠", color: "#c2a45a", colorDark: "#8f7639", sizeScale: 1.0 },
+  { id: "hecht", name: "Hecht", presses: 5, weight: [2, 9], unit: "kg",
+    points: 260, rarity: 12, emoji: "🐠", color: "#5c8a5c", colorDark: "#3d603d", sizeScale: 1.15 },
+  { id: "lachs", name: "Lachs", presses: 6, weight: [3, 14], unit: "kg",
+    points: 360, rarity: 8, emoji: "🐡", color: "#e08a6a", colorDark: "#a85c42", sizeScale: 1.3 },
+  { id: "thunfisch", name: "Blauflossen-Thunfisch", presses: 7, weight: [50, 300], unit: "kg",
+    points: 480, rarity: 5, emoji: "🐡", color: "#3f5f7a", colorDark: "#263c4d", sizeScale: 1.55 },
+  { id: "hai", name: "Weißer Hai", presses: 9, weight: [500, 1100], unit: "kg",
+    points: 700, rarity: 2.5, emoji: "🦈", color: "#8f9aa3", colorDark: "#5f6870", sizeScale: 1.9 },
+  { id: "blauwal", name: "Blauwal", presses: 10, weight: [100, 150], unit: "t",
+    points: 1200, rarity: 0.5, emoji: "🐋", color: "#3a5a78", colorDark: "#223549", sizeScale: 2.4 },
+];
+
+// Angelruten: bessere Ruten brauchen weniger Tastendrücke und geben mehr
+// Zeit pro Tastendruck. Werden mit Punkten im Angelladen gekauft.
+const RODS = {
+  standard: {
+    name: "Standardrute", price: 0, pressReduction: 0,
+    initialTime: 1.3, decay: 0.86, minTime: 0.4,
+    desc: "Deine Rute vom ersten Tag. Volle Tastenfolge, normales Tempo.",
+  },
+  gold: {
+    name: "Gold-Angel", price: 350, pressReduction: 1,
+    initialTime: 1.6, decay: 0.9, minTime: 0.5,
+    desc: "Ein Tastendruck weniger nötig, spürbar mehr Zeit pro Druck.",
+  },
+  diamond: {
+    name: "Diamant-Angel", price: 900, pressReduction: 2,
+    initialTime: 1.9, decay: 0.94, minTime: 0.6,
+    desc: "Zwei Tastendrücke weniger nötig und am meisten Zeit pro Druck.",
+  },
+};
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function buildFishSequence() {
-  const length = randomInt(MIN_SEQ_LEN, MAX_SEQ_LEN);
-  const sequence = [];
-  for (let i = 0; i < length; i++) {
-    sequence.push(DIRECTIONS[randomInt(0, DIRECTIONS.length - 1)]);
+function pickFishSpecies() {
+  const total = FISH_SPECIES.reduce((sum, f) => sum + f.rarity, 0);
+  let r = Math.random() * total;
+  for (const f of FISH_SPECIES) {
+    if (r < f.rarity) return f;
+    r -= f.rarity;
   }
-  return sequence;
+  return FISH_SPECIES[FISH_SPECIES.length - 1];
 }
 
-function weightForLength(length) {
-  const base = 150 + (length - 2) * 110;
-  const jitter = 0.85 + Math.random() * 0.3;
-  return Math.round(base * jitter);
+function buildSequenceForSpecies(species, rod) {
+  const effectiveLength = Math.max(1, species.presses - rod.pressReduction);
+  const seq = [];
+  for (let i = 0; i < effectiveLength; i++) {
+    seq.push(DIRECTIONS[randomInt(0, DIRECTIONS.length - 1)]);
+  }
+  return seq;
 }
 
-function pointsForLength(length) {
-  return length * 25;
+const UNIT_TO_GRAMS = { g: 1, kg: 1000, t: 1_000_000 };
+
+function formatWeight(value, unit) {
+  if (unit === "g") return `${Math.round(value)} g`;
+  if (unit === "kg") return `${value < 10 ? value.toFixed(1) : Math.round(value)} kg`;
+  return `${value.toFixed(1)} t`;
 }
 
-function fishEmojiForWeight(weight) {
-  if (weight < 300) return "🐟";
-  if (weight < 600) return "🐠";
-  if (weight < 900) return "🐡";
-  return "🦈";
+function formatGrams(grams) {
+  if (grams >= 1_000_000) return `${(grams / 1_000_000).toFixed(1)} t`;
+  if (grams >= 1000) return `${(grams / 1000 < 10 ? (grams / 1000).toFixed(1) : Math.round(grams / 1000))} kg`;
+  return `${Math.round(grams)} g`;
 }
 
 // ---------------------------------------------------------------------
@@ -61,20 +110,22 @@ let selectedCharacter = null;
 let gameState = "idle";
 
 let biteDeadline = 0;
-let castStartTime = 0;
 
+let currentSpecies = null;
 let sequence = [];
 let seqIndex = 0;
 let keyDeadline = 0;
-let currentKeyBudget = INITIAL_KEY_TIME;
+let currentKeyBudget = 0;
 
-let animState = null; // { type: "success" | "failure", start }
-const ANIM_DURATION = 0.9;
+// animState.phase (nur bei "success"): "jumping" -> "holding" -> Panel wird gezeigt
+let animState = null;
 
 let score = 0;
-let catches = []; // { weight, length, points }
+let catches = []; // { species, weightValue, weightGrams, presses, points }
 
-let lastFrameTime = 0;
+let ownedRods = new Set(["standard"]);
+let equippedRod = "standard";
+
 let bobPhase = 0;
 
 // ---------------------------------------------------------------------
@@ -89,12 +140,15 @@ const screens = {
 
 const btnStart = document.getElementById("btn-start");
 const btnExitGame = document.getElementById("btn-exit-game");
+const btnShop = document.getElementById("btn-shop");
+const btnShopClose = document.getElementById("btn-shop-close");
 const btnContinue = document.getElementById("btn-continue");
 const btnRestart = document.getElementById("btn-restart");
 const btnChangeAngler = document.getElementById("btn-change-angler");
 
 const hudScore = document.getElementById("hud-score");
 const hudCatches = document.getElementById("hud-catches");
+const hudRod = document.getElementById("hud-rod");
 const statusText = document.getElementById("status-text");
 const qtePanel = document.getElementById("qte-panel");
 const qteKeysEl = document.getElementById("qte-keys");
@@ -104,6 +158,10 @@ const outcomeTitle = document.getElementById("outcome-title");
 const outcomeDetails = document.getElementById("outcome-details");
 const summaryStats = document.getElementById("summary-stats");
 const catchList = document.getElementById("catch-list");
+
+const shopModal = document.getElementById("shop-modal");
+const shopPointsEl = document.getElementById("shop-points");
+const shopRodsEl = document.getElementById("shop-rods");
 
 const canvas = document.getElementById("game-canvas");
 const ctx = canvas.getContext("2d");
@@ -209,32 +267,25 @@ function bobberRestPos() {
 // Game flow
 // ---------------------------------------------------------------------
 
-btnStart.addEventListener("click", () => {
-  if (!selectedCharacter) return;
+function beginSession() {
   score = 0;
   catches = [];
   showScreen("game");
   requestAnimationFrame(() => {
     resizeCanvas();
-    lastFrameTime = performance.now();
     startCasting();
     requestAnimationFrame(loop);
   });
+}
+
+btnStart.addEventListener("click", () => {
+  if (!selectedCharacter) return;
+  beginSession();
 });
 
 btnExitGame.addEventListener("click", () => showSummary());
 btnChangeAngler.addEventListener("click", () => showScreen("select"));
-btnRestart.addEventListener("click", () => {
-  score = 0;
-  catches = [];
-  showScreen("game");
-  requestAnimationFrame(() => {
-    resizeCanvas();
-    lastFrameTime = performance.now();
-    startCasting();
-    requestAnimationFrame(loop);
-  });
-});
+btnRestart.addEventListener("click", () => beginSession());
 
 btnContinue.addEventListener("click", () => {
   outcomePanel.classList.add("hidden");
@@ -245,6 +296,7 @@ btnContinue.addEventListener("click", () => {
 function updateHud() {
   hudScore.textContent = `${score} Punkte`;
   hudCatches.textContent = `${catches.length} Fisch${catches.length === 1 ? "" : "e"} gefangen`;
+  hudRod.textContent = `🎣 ${RODS[equippedRod].name}`;
 }
 
 function startCasting() {
@@ -253,8 +305,7 @@ function startCasting() {
   qtePanel.classList.add("hidden");
   outcomePanel.classList.add("hidden");
   const waitTime = BITE_WAIT_MIN + Math.random() * (BITE_WAIT_MAX - BITE_WAIT_MIN);
-  castStartTime = performance.now();
-  biteDeadline = castStartTime + waitTime * 1000;
+  biteDeadline = performance.now() + waitTime * 1000;
   updateHud();
 }
 
@@ -267,12 +318,14 @@ function renderQteRow() {
 
 function startBite() {
   gameState = "biting";
-  sequence = buildFishSequence();
+  currentSpecies = pickFishSpecies();
+  const rod = RODS[equippedRod];
+  sequence = buildSequenceForSpecies(currentSpecies, rod);
   seqIndex = 0;
-  currentKeyBudget = INITIAL_KEY_TIME;
+  currentKeyBudget = rod.initialTime;
   keyDeadline = performance.now() + currentKeyBudget * 1000;
 
-  statusText.textContent = "Er beißt an! Tastenfolge nachdrücken!";
+  statusText.textContent = `Ein ${currentSpecies.name} beißt an! Tastenfolge nachdrücken!`;
   qtePanel.classList.remove("hidden");
   renderQteRow();
   qteTimerFill.style.transition = "none";
@@ -284,7 +337,8 @@ function startBite() {
 }
 
 function advanceKeyTimer() {
-  currentKeyBudget = Math.max(MIN_KEY_TIME, currentKeyBudget * KEY_TIME_DECAY);
+  const rod = RODS[equippedRod];
+  currentKeyBudget = Math.max(rod.minTime, currentKeyBudget * rod.decay);
   keyDeadline = performance.now() + currentKeyBudget * 1000;
   qteTimerFill.style.transition = "none";
   qteTimerFill.style.width = "100%";
@@ -318,56 +372,76 @@ window.addEventListener("keydown", (e) => {
 });
 
 function succeedCatch() {
-  const length = sequence.length;
-  const weight = weightForLength(length);
-  const points = pointsForLength(length);
+  const species = currentSpecies;
+  const weightValue = species.weight[0] + Math.random() * (species.weight[1] - species.weight[0]);
+  const weightGrams = weightValue * UNIT_TO_GRAMS[species.unit];
+  const points = species.points;
+  const presses = sequence.length;
+
   score += points;
-  catches.push({ weight, length, points });
+  catches.push({ species, weightValue, weightGrams, presses, points });
   updateHud();
 
   gameState = "success";
   qtePanel.classList.add("hidden");
-  statusText.textContent = "";
-  animState = { type: "success", start: performance.now() };
-
-  const emoji = fishEmojiForWeight(weight);
-  outcomeTitle.textContent = `${emoji} Gefangen!`;
-  outcomeDetails.innerHTML = `
-    <div><b>${weight} g</b> schwer</div>
-    <div>${length} Tastendrücke gebraucht</div>
-    <div>+${points} Punkte</div>
-  `;
-  outcomePanel.classList.remove("hidden");
+  statusText.textContent = `${species.name} an der Angel – hoch damit!`;
+  animState = { type: "success", start: performance.now(), species, revealed: false };
 }
 
 function failCatch() {
   gameState = "failure";
   qtePanel.classList.add("hidden");
   statusText.textContent = "";
-  animState = { type: "failure", start: performance.now() };
+  animState = { type: "failure", start: performance.now(), revealed: false };
+}
 
+function revealSuccessOutcome() {
+  const c = catches[catches.length - 1];
+  statusText.textContent = "";
+  outcomeTitle.textContent = `${c.species.emoji} ${c.species.name} gefangen!`;
+  outcomeDetails.innerHTML = `
+    <div><b>${formatWeight(c.weightValue, c.species.unit)}</b> schwer</div>
+    <div>${c.presses} Tastendrücke gebraucht</div>
+    <div>+${c.points} Punkte</div>
+  `;
+  outcomePanel.classList.remove("hidden");
+}
+
+function revealFailureOutcome() {
   outcomeTitle.textContent = "Reingefallen!";
   outcomeDetails.innerHTML = `<div>Der Fisch war zu stark – du bist in den Fluss gezogen worden.</div>`;
   outcomePanel.classList.remove("hidden");
 }
 
+function maybeRevealOutcome(now) {
+  if (!animState || animState.revealed) return;
+  const elapsed = (now - animState.start) / 1000;
+  if (animState.type === "success" && elapsed >= SUCCESS_JUMP_DURATION + SUCCESS_HOLD_DURATION) {
+    animState.revealed = true;
+    revealSuccessOutcome();
+  } else if (animState.type === "failure" && elapsed >= FAIL_ANIM_DURATION) {
+    animState.revealed = true;
+    revealFailureOutcome();
+  }
+}
+
 function showSummary() {
   gameState = "idle";
-  const totalWeight = catches.reduce((sum, c) => sum + c.weight, 0);
-  const biggest = catches.reduce((max, c) => (c.weight > (max ? max.weight : 0) ? c : max), null);
+  const totalGrams = catches.reduce((sum, c) => sum + c.weightGrams, 0);
+  const biggest = catches.reduce((max, c) => (!max || c.weightGrams > max.weightGrams ? c : max), null);
 
   summaryStats.innerHTML = `
     <div class="stat-row"><span>Punkte gesamt</span><b>${score}</b></div>
     <div class="stat-row"><span>Fische gefangen</span><b>${catches.length}</b></div>
-    <div class="stat-row"><span>Gesamtgewicht</span><b>${totalWeight} g</b></div>
-    <div class="stat-row"><span>Größter Fang</span><b>${biggest ? biggest.weight + " g" : "–"}</b></div>
+    <div class="stat-row"><span>Gesamtgewicht</span><b>${formatGrams(totalGrams)}</b></div>
+    <div class="stat-row"><span>Größter Fang</span><b>${biggest ? biggest.species.name + " (" + formatWeight(biggest.weightValue, biggest.species.unit) + ")" : "–"}</b></div>
   `;
 
   catchList.innerHTML = catches.length
-    ? catches.map((c) => `
+    ? catches.slice().reverse().map((c) => `
         <div class="catch-row">
-          <div class="catch-emoji">${fishEmojiForWeight(c.weight)}</div>
-          <div class="catch-info">${c.weight} g · ${c.length} Tastendrücke</div>
+          <div class="catch-emoji">${c.species.emoji}</div>
+          <div class="catch-info">${c.species.name} · ${formatWeight(c.weightValue, c.species.unit)} · ${c.presses} Tastendrücke</div>
           <div class="catch-points">+${c.points}</div>
         </div>
       `).join("")
@@ -375,6 +449,55 @@ function showSummary() {
 
   showScreen("summary");
 }
+
+// ---------------------------------------------------------------------
+// Angelladen (Shop)
+// ---------------------------------------------------------------------
+
+function renderShop() {
+  shopPointsEl.textContent = `Punkte: ${score}`;
+  shopRodsEl.innerHTML = Object.entries(RODS).map(([id, rod]) => {
+    const owned = ownedRods.has(id);
+    const equipped = equippedRod === id;
+    let label, disabled;
+    if (equipped) { label = "Ausgerüstet"; disabled = true; }
+    else if (owned) { label = "Ausrüsten"; disabled = false; }
+    else { label = `Kaufen – ${rod.price} P`; disabled = score < rod.price; }
+
+    return `
+      <div class="rod-card ${equipped ? "rod-card-active" : ""}">
+        <div class="rod-name">${rod.name}</div>
+        <div class="rod-desc">${rod.desc}</div>
+        <button class="rod-btn" data-rod="${id}" ${disabled ? "disabled" : ""}>${label}</button>
+      </div>
+    `;
+  }).join("");
+
+  shopRodsEl.querySelectorAll(".rod-btn").forEach((btn) => {
+    btn.addEventListener("click", () => onRodButtonClick(btn.dataset.rod));
+  });
+}
+
+function onRodButtonClick(id) {
+  const rod = RODS[id];
+  if (ownedRods.has(id)) {
+    equippedRod = id;
+  } else if (score >= rod.price) {
+    score -= rod.price;
+    ownedRods.add(id);
+    equippedRod = id;
+  }
+  updateHud();
+  renderShop();
+}
+
+btnShop.addEventListener("click", () => {
+  if (gameState === "biting") return;
+  renderShop();
+  shopModal.classList.remove("hidden");
+});
+btnShopClose.addEventListener("click", () => shopModal.classList.add("hidden"));
+shopModal.querySelector(".modal-backdrop").addEventListener("click", () => shopModal.classList.add("hidden"));
 
 // ---------------------------------------------------------------------
 // Rendering
@@ -426,11 +549,35 @@ function drawScene(now) {
   ctx.fillRect(0, waterY - h * 0.02, bw * 0.7, h * 0.03);
 }
 
-function drawAngler(now, fallProgress) {
+function drawFishShape(scale, color, colorDark) {
+  const bodyRX = canvas.width * 0.028 * scale;
+  const bodyRY = canvas.width * 0.013 * scale;
+
+  ctx.beginPath();
+  ctx.ellipse(0, 0, bodyRX, bodyRY, 0, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-bodyRX * 0.93, 0);
+  ctx.lineTo(-bodyRX * 1.6, -bodyRY * 0.9);
+  ctx.lineTo(-bodyRX * 1.6, bodyRY * 0.9);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.5, -bodyRY * 0.25, Math.max(1, bodyRX * 0.1), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
+function drawAngler(now, fallProgress, holdInfo) {
   const hand = anglerHandPos();
   const bodyX = hand.x - 14;
   const bodyTopY = hand.y - 4;
   const bodyH = canvas.height * 0.16;
+  const headR = canvas.height * 0.022;
 
   ctx.save();
   if (fallProgress > 0) {
@@ -443,12 +590,35 @@ function drawAngler(now, fallProgress) {
     ctx.translate(-(bodyX), -(bodyTopY + bodyH * 0.5));
   }
 
+  const bob = holdInfo ? Math.sin(holdInfo.progress * Math.PI * 3) * canvas.height * 0.004 : 0;
+
   // Körper
   ctx.fillStyle = "#5b6b7a";
   ctx.fillRect(bodyX - 10, bodyTopY, 20, bodyH);
 
+  if (holdInfo) {
+    // Arme hoch, Fisch wird über den Kopf gehalten
+    ctx.strokeStyle = "#5b6b7a";
+    ctx.lineWidth = Math.max(2, canvas.width * 0.005);
+    ctx.beginPath();
+    ctx.moveTo(bodyX - 9, bodyTopY + 6);
+    ctx.lineTo(bodyX - 6, bodyTopY - headR * 2.4 + bob);
+    ctx.moveTo(bodyX + 9, bodyTopY + 6);
+    ctx.lineTo(bodyX + 6, bodyTopY - headR * 2.4 + bob);
+    ctx.stroke();
+  }
+
   // Kopf
-  drawHead(ctx, bodyX, bodyTopY - 4, canvas.height * 0.022, selectedCharacter || "bald", 0);
+  drawHead(ctx, bodyX, bodyTopY - 4, headR, selectedCharacter || "bald", 0);
+
+  if (holdInfo) {
+    const fishY = bodyTopY - headR * 2.6 - canvas.height * 0.02 + bob;
+    const heldScale = Math.min(holdInfo.species.sizeScale, 2.2);
+    ctx.save();
+    ctx.translate(bodyX, fishY);
+    drawFishShape(heldScale, holdInfo.species.color, holdInfo.species.colorDark);
+    ctx.restore();
+  }
 
   ctx.restore();
 }
@@ -510,7 +680,7 @@ function drawSplash(x, y, progress) {
   }
 }
 
-function drawFishJump(progress) {
+function drawFishJump(progress, species) {
   const rest = bobberRestPos();
   const jumpHeight = canvas.height * 0.14;
   const arc = Math.sin(Math.min(1, progress) * Math.PI);
@@ -520,21 +690,7 @@ function drawFishJump(progress) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-0.3 + arc * 0.5);
-  ctx.fillStyle = "#bcd6dc";
-  ctx.beginPath();
-  ctx.ellipse(0, 0, canvas.width * 0.028, canvas.width * 0.013, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(-canvas.width * 0.026, 0);
-  ctx.lineTo(-canvas.width * 0.045, -canvas.width * 0.012);
-  ctx.lineTo(-canvas.width * 0.045, canvas.width * 0.012);
-  ctx.closePath();
-  ctx.fillStyle = "#8fb4bc";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(canvas.width * 0.014, -canvas.width * 0.003, canvas.width * 0.003, 0, Math.PI * 2);
-  ctx.fillStyle = "#14171b";
-  ctx.fill();
+  drawFishShape(species.sizeScale, species.color, species.colorDark);
   ctx.restore();
 
   drawSplash(rest.x, rest.y, Math.min(1, progress * 1.4));
@@ -544,15 +700,26 @@ function render(now) {
   drawScene(now);
 
   let fallProgress = 0;
+  let holdInfo = null;
+  let jumpInfo = null;
+
   if (animState && animState.type === "failure") {
-    fallProgress = Math.min(1, (now - animState.start) / 1000 / ANIM_DURATION);
+    fallProgress = Math.min(1, (now - animState.start) / 1000 / FAIL_ANIM_DURATION);
+  } else if (animState && animState.type === "success") {
+    const elapsed = (now - animState.start) / 1000;
+    if (elapsed < SUCCESS_JUMP_DURATION) {
+      jumpInfo = { progress: elapsed / SUCCESS_JUMP_DURATION, species: animState.species };
+    } else {
+      const holdProgress = Math.min(1, (elapsed - SUCCESS_JUMP_DURATION) / SUCCESS_HOLD_DURATION);
+      holdInfo = { progress: holdProgress, species: animState.species };
+    }
   }
-  drawAngler(now, fallProgress);
+
+  drawAngler(now, fallProgress, holdInfo);
   drawRodAndBobber(now);
 
-  if (animState && animState.type === "success") {
-    const progress = (now - animState.start) / 1000 / ANIM_DURATION;
-    if (progress <= 1) drawFishJump(progress);
+  if (jumpInfo) {
+    drawFishJump(jumpInfo.progress, jumpInfo.species);
   } else if (animState && animState.type === "failure") {
     drawSplash(anglerHandPos().x - 14, waterSurfaceY(), fallProgress);
   }
@@ -569,6 +736,7 @@ function loop(now) {
     failCatch();
   }
 
+  maybeRevealOutcome(now);
   render(now);
 
   if (gameState !== "idle") {
