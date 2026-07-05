@@ -109,17 +109,63 @@ const ROD_VISUALS = {
   dragon: { color: "#7a2020", accent: "#ff7a3c", style: "flame" },
 };
 
+// Köder: brauchst du für jeden Wurf (1 Stück pro Wurf, egal ob Fang oder
+// Fehlschlag). Bessere Köder machen die Fische nicht leichter zu fangen,
+// sondern verschieben die Zufallsauswahl stark zugunsten seltener/besserer
+// Arten (siehe pickFishSpecies: boost^Tier-Anteil). Werden in 20er-Tüten
+// gekauft und können sich anhäufen.
+const BAIT_BAG_SIZE = 20;
+const STARTER_BAIT_COUNT = 20;
+
+const BAITS = {
+  standard: {
+    name: "Standardköder", price: 60, boost: 1,
+    desc: "Der Klassiker. Ganz normale Fangchancen für alle Arten.",
+  },
+  premium: {
+    name: "Premiumköder", price: 120, boost: 3,
+    desc: "Deutlich höhere Chance auf größere, seltenere Fische.",
+  },
+  profi: {
+    name: "Profiköder", price: 500, boost: 8,
+    desc: "Starker Zug zu seltenen, wertvollen Fängen.",
+  },
+  meister: {
+    name: "Meisterköder", price: 1000, boost: 20,
+    desc: "Maximale Chance auf die seltensten Fänge im ganzen Spiel.",
+  },
+};
+
+const BAIT_VISUALS = {
+  standard: "#8a5a3b",
+  premium: "#4a90c2",
+  profi: "#8a4ac2",
+  meister: "#e8b93f",
+};
+
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// Wählt eine Fischart aus dem Pool (ohne rodgesperrte Arten), gewichtet
+// nach Seltenheit UND nach dem Köder-Boost: je höher der Tier-Index
+// (=weiter hinten in der jeweils gültigen Liste), desto stärker wirkt der
+// Boost des aktuell ausgerüsteten Köders.
 function pickFishSpecies() {
   const pool = FISH_SPECIES.filter((f) => !f.requiresRod || f.requiresRod === equippedRod);
-  const total = pool.reduce((sum, f) => sum + f.rarity, 0);
+  const bait = BAITS[equippedBait];
+  const maxIndex = pool.length - 1;
+
+  const weights = pool.map((f, i) => {
+    const tierShare = maxIndex > 0 ? i / maxIndex : 0;
+    return f.rarity * Math.pow(bait.boost, tierShare);
+  });
+  const total = weights.reduce((a, b) => a + b, 0);
+
   let r = Math.random() * total;
-  for (const f of pool) {
-    if (r < f.rarity) return f;
-    r -= f.rarity;
+  for (let i = 0; i < pool.length; i++) {
+    if (r < weights[i]) return pool[i];
+    r -= weights[i];
   }
   return pool[pool.length - 1];
 }
@@ -173,7 +219,7 @@ function formatGrams(grams) {
 let selectedCharacter = null;
 
 // gameState: "casting" (wartet auf Biss) | "biting" (QTE läuft) |
-// "success" | "failure" | "idle"
+// "success" | "failure" | "outofbait" | "idle"
 let gameState = "idle";
 
 let biteDeadline = 0;
@@ -193,6 +239,12 @@ let catches = []; // { species, weightValue, weightGrams, presses, points }
 
 let ownedRods = new Set(["standard"]);
 let equippedRod = "standard";
+
+// Startet mit einer kostenlosen Tüte Standardköder. Bleibt (wie die
+// Ruten) über "Nochmal von vorne" hinweg erhalten – nur ein harter Reset
+// (siehe hardReset) setzt sie zurück auf den Startbestand.
+let baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0 };
+let equippedBait = "standard";
 
 let bobPhase = 0;
 
@@ -217,6 +269,7 @@ const btnChangeAngler = document.getElementById("btn-change-angler");
 const hudScore = document.getElementById("hud-score");
 const hudCatches = document.getElementById("hud-catches");
 const hudRod = document.getElementById("hud-rod");
+const hudBait = document.getElementById("hud-bait");
 const statusText = document.getElementById("status-text");
 const qtePanel = document.getElementById("qte-panel");
 const qteKeysEl = document.getElementById("qte-keys");
@@ -224,12 +277,17 @@ const qteTimerFill = document.getElementById("qte-timerbar-fill");
 const outcomePanel = document.getElementById("outcome-panel");
 const outcomeTitle = document.getElementById("outcome-title");
 const outcomeDetails = document.getElementById("outcome-details");
+const noBaitPanel = document.getElementById("no-bait-panel");
+const noBaitTitle = document.getElementById("no-bait-title");
+const noBaitDetails = document.getElementById("no-bait-details");
+const btnNoBaitAction = document.getElementById("btn-no-bait-action");
 const summaryStats = document.getElementById("summary-stats");
 const catchList = document.getElementById("catch-list");
 
 const shopModal = document.getElementById("shop-modal");
 const shopPointsEl = document.getElementById("shop-points");
 const shopRodsEl = document.getElementById("shop-rods");
+const shopBaitsEl = document.getElementById("shop-baits");
 
 const canvas = document.getElementById("game-canvas");
 const ctx = canvas.getContext("2d");
@@ -365,13 +423,77 @@ function updateHud() {
   hudScore.textContent = `${score} Punkte`;
   hudCatches.textContent = `${catches.length} Fisch${catches.length === 1 ? "" : "e"} gefangen`;
   hudRod.textContent = `🎣 ${RODS[equippedRod].name}`;
+  const baitLeft = baitInventory[equippedBait] || 0;
+  hudBait.textContent = `🪱 ${BAITS[equippedBait].name} ×${baitLeft}`;
+}
+
+// Verbraucht 1 Köder für den bevorstehenden Wurf. Gibt true zurück, wenn
+// geworfen werden kann. Ist der ausgerüstete Köder leer, wird automatisch
+// auf einen anderen vorhandenen Köder gewechselt. Ist gar kein Köder mehr
+// da, wird je nach Kontostand entweder zum Laden geschickt oder (wenn
+// sich auch der billigste Köder nicht mehr leisten lässt) ein Reset
+// erzwungen.
+function consumeBait() {
+  if (baitInventory[equippedBait] > 0) {
+    baitInventory[equippedBait]--;
+    updateHud();
+    return true;
+  }
+
+  const fallback = Object.keys(BAITS).find((id) => baitInventory[id] > 0);
+  if (fallback) {
+    equippedBait = fallback;
+    baitInventory[fallback]--;
+    updateHud();
+    return true;
+  }
+
+  const cheapestPrice = Math.min(...Object.values(BAITS).map((b) => b.price));
+  gameState = "outofbait";
+  qtePanel.classList.add("hidden");
+  outcomePanel.classList.add("hidden");
+  statusText.textContent = "";
+
+  if (score >= cheapestPrice) {
+    noBaitTitle.textContent = "Köder alle!";
+    noBaitDetails.innerHTML = "<div>Du hast keinen Köder mehr im Köcher. Kauf im Angelladen nach, um weiterzuangeln.</div>";
+    btnNoBaitAction.textContent = "Zum Angelladen";
+    btnNoBaitAction.onclick = () => {
+      renderShop();
+      shopModal.classList.remove("hidden");
+    };
+  } else {
+    noBaitTitle.textContent = "Köder alle – und pleite!";
+    noBaitDetails.innerHTML = "<div>Kein Köder mehr und auch kein Geld für Nachschub. Zeit für einen Neustart.</div>";
+    btnNoBaitAction.textContent = "Neu starten";
+    btnNoBaitAction.onclick = () => hardReset();
+  }
+  noBaitPanel.classList.remove("hidden");
+  return false;
+}
+
+// Kompletter Reset: Punkte, Fänge, Ruten UND Köder zurück auf null bzw.
+// Startbestand. Die eigentliche Konsequenz, wenn man sich verzockt hat.
+function hardReset() {
+  score = 0;
+  catches = [];
+  ownedRods = new Set(["standard"]);
+  equippedRod = "standard";
+  baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0 };
+  equippedBait = "standard";
+  noBaitPanel.classList.add("hidden");
+  updateHud();
+  startCasting();
 }
 
 function startCasting() {
+  if (!consumeBait()) return;
+
   gameState = "casting";
   statusText.textContent = "Angel ausgeworfen … warte auf einen Biss.";
   qtePanel.classList.add("hidden");
   outcomePanel.classList.add("hidden");
+  noBaitPanel.classList.add("hidden");
   const waitTime = BITE_WAIT_MIN + Math.random() * (BITE_WAIT_MAX - BITE_WAIT_MIN);
   biteDeadline = performance.now() + waitTime * 1000;
   updateHud();
@@ -578,8 +700,91 @@ function drawRodIcon(canvasEl, rodId) {
   }
 }
 
+function drawBaitIcon(canvasEl, baitId) {
+  const color = BAIT_VISUALS[baitId];
+  const c = canvasEl.getContext("2d");
+  const w = canvasEl.width, h = canvasEl.height;
+  c.clearRect(0, 0, w, h);
+
+  // Kleine Köder-Tüte
+  c.fillStyle = color;
+  c.beginPath();
+  c.moveTo(w * 0.3, h * 0.28);
+  c.quadraticCurveTo(w * 0.14, h * 0.5, w * 0.3, h * 0.86);
+  c.lineTo(w * 0.7, h * 0.86);
+  c.quadraticCurveTo(w * 0.86, h * 0.5, w * 0.7, h * 0.28);
+  c.closePath();
+  c.fill();
+
+  // Knoten oben
+  c.strokeStyle = "rgba(0,0,0,0.35)";
+  c.lineWidth = Math.max(2, w * 0.05);
+  c.beginPath();
+  c.moveTo(w * 0.35, h * 0.28);
+  c.lineTo(w * 0.65, h * 0.28);
+  c.stroke();
+  c.beginPath();
+  c.arc(w * 0.5, h * 0.2, w * 0.08, 0, Math.PI * 2);
+  c.fillStyle = color;
+  c.fill();
+
+  // Highlight
+  c.fillStyle = "rgba(255,255,255,0.25)";
+  c.beginPath();
+  c.ellipse(w * 0.4, h * 0.5, w * 0.06, h * 0.14, 0, 0, Math.PI * 2);
+  c.fill();
+}
+
+function renderBaitShop() {
+  shopBaitsEl.innerHTML = Object.entries(BAITS).map(([id, bait]) => {
+    const stock = baitInventory[id] || 0;
+    const equipped = equippedBait === id;
+    const canAfford = score >= bait.price;
+
+    return `
+      <div class="rod-card ${equipped ? "rod-card-active" : ""}">
+        <canvas class="rod-icon" data-bait-icon="${id}" width="70" height="70"></canvas>
+        <div class="rod-body">
+          <div class="rod-name">${bait.name}</div>
+          <div class="rod-desc">${bait.desc}</div>
+          <div class="bait-stock">Vorrat: ${stock}${equipped ? " · ausgerüstet" : ""}</div>
+          <div class="bait-actions">
+            <button class="rod-btn" data-buy-bait="${id}" ${canAfford ? "" : "disabled"}>Tüte kaufen (+${BAIT_BAG_SIZE}) – ${bait.price} P</button>
+            ${!equipped && stock > 0 ? `<button class="rod-btn bait-equip-btn" data-equip-bait="${id}">Ausrüsten</button>` : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  shopBaitsEl.querySelectorAll("[data-buy-bait]").forEach((btn) => {
+    btn.addEventListener("click", () => buyBait(btn.dataset.buyBait));
+  });
+  shopBaitsEl.querySelectorAll("[data-equip-bait]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      equippedBait = btn.dataset.equipBait;
+      updateHud();
+      renderBaitShop();
+    });
+  });
+  shopBaitsEl.querySelectorAll("canvas[data-bait-icon]").forEach((c) => {
+    drawBaitIcon(c, c.dataset.baitIcon);
+  });
+}
+
+function buyBait(id) {
+  const bait = BAITS[id];
+  if (score < bait.price) return;
+  score -= bait.price;
+  baitInventory[id] = (baitInventory[id] || 0) + BAIT_BAG_SIZE;
+  equippedBait = id;
+  updateHud();
+  renderShop();
+}
+
 function renderShop() {
   shopPointsEl.textContent = `Punkte: ${score}`;
+  renderBaitShop();
   shopRodsEl.innerHTML = Object.entries(RODS).map(([id, rod]) => {
     const owned = ownedRods.has(id);
     const equipped = equippedRod === id;
@@ -621,13 +826,20 @@ function onRodButtonClick(id) {
   renderShop();
 }
 
+function closeShop() {
+  shopModal.classList.add("hidden");
+  // War das Angeln wegen leerem Köcher blockiert, hier automatisch neu
+  // versuchen (klappt, falls in der Zwischenzeit Köder gekauft wurden).
+  if (gameState === "outofbait") startCasting();
+}
+
 btnShop.addEventListener("click", () => {
   if (gameState === "biting") return;
   renderShop();
   shopModal.classList.remove("hidden");
 });
-btnShopClose.addEventListener("click", () => shopModal.classList.add("hidden"));
-shopModal.querySelector(".modal-backdrop").addEventListener("click", () => shopModal.classList.add("hidden"));
+btnShopClose.addEventListener("click", closeShop);
+shopModal.querySelector(".modal-backdrop").addEventListener("click", closeShop);
 
 // ---------------------------------------------------------------------
 // Rendering

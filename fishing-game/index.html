@@ -37,6 +37,8 @@
         <li>Verpasst du eine Taste, zieht dich der Fisch in den Fluss – und du musst neu werfen.</li>
         <li>Gefangene Fische hältst du erst stolz über den Kopf, bevor die Stats erscheinen.</li>
         <li>Im Angelladen (🛒) gibt's Gold-, Diamant- und die exklusive Drachen-Angel – jede mit eigenem Design. Nur mit der Drachen-Angel beißt der legendäre Seedrache an (15 Tastendrücke!).</li>
+        <li>Jeder Wurf kostet 1 Köder. Bessere Köder (in 20er-Tüten kaufbar) machen die Fische nicht leichter, aber viel wahrscheinlicher, dass ein richtig guter anbeißt.</li>
+        <li>Kein Köder mehr und kein Geld für Nachschub? Dann heißt es: neu starten.</li>
       </ul>
     </div>
   </section>
@@ -48,6 +50,7 @@
       <div id="hud-score">0 Punkte</div>
       <div id="hud-catches">0 Fische</div>
       <div id="hud-rod">🎣 Standardrute</div>
+      <div id="hud-bait">🪱 Standardköder ×20</div>
     </div>
     <canvas id="game-canvas"></canvas>
 
@@ -64,6 +67,12 @@
       <button id="btn-continue" class="primary-btn">Weiter angeln</button>
     </div>
 
+    <div id="no-bait-panel" class="hidden">
+      <div id="no-bait-title"></div>
+      <div id="no-bait-details"></div>
+      <button id="btn-no-bait-action" class="primary-btn"></button>
+    </div>
+
     <div id="shop-modal" class="modal hidden">
       <div class="modal-backdrop"></div>
       <div class="modal-panel">
@@ -72,6 +81,9 @@
           <button id="btn-shop-close" class="modal-close" aria-label="Schließen">✕</button>
         </div>
         <div id="shop-points"></div>
+        <h3 class="shop-section-title">Köder</h3>
+        <div id="shop-baits"></div>
+        <h3 class="shop-section-title">Angelruten</h3>
         <div id="shop-rods"></div>
       </div>
     </div>

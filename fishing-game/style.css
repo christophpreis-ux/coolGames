@@ -212,14 +212,16 @@ html, body {
   position: absolute;
   top: 14px;
   left: 14px;
+  right: 110px;
   z-index: 5;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: center;
   font-variant-numeric: tabular-nums;
 }
 
-#hud-score, #hud-catches, #hud-rod {
+#hud-score, #hud-catches, #hud-rod, #hud-bait {
   background: rgba(20,23,27,0.75);
   padding: 8px 16px;
   border-radius: 10px;
@@ -227,7 +229,7 @@ html, body {
   font-weight: 700;
 }
 
-#hud-catches, #hud-rod {
+#hud-catches, #hud-rod, #hud-bait {
   font-size: 14px;
   font-weight: 400;
   color: var(--text-dim);
@@ -339,7 +341,65 @@ html, body {
   line-height: 1.6;
 }
 
+#no-bait-panel {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  background: var(--panel);
+  border: 2px solid var(--danger);
+  border-radius: 14px;
+  padding: 20px 28px;
+  text-align: center;
+  min-width: 260px;
+  max-width: 90vw;
+}
+
+#no-bait-panel.hidden {
+  display: none;
+}
+
+#no-bait-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: var(--danger);
+}
+
+#no-bait-details {
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+
 /* ---------- Angelladen (Shop) ---------- */
+
+.shop-section-title {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.bait-stock {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.bait-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bait-equip-btn {
+  background: transparent;
+  border: 2px solid #4a4f56;
+  color: var(--text-dim);
+}
 
 .modal {
   position: absolute;

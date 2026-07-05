@@ -20,6 +20,7 @@ python3 -m http.server 8080
 - Mit jedem richtigen Tastendruck wird das Zeitfenster für den nächsten Druck kürzer – der Fisch wehrt sich zunehmend.
 - Falsche Taste oder Zeit abgelaufen: Du wirst in den Fluss gezogen, der Fisch entkommt.
 - Erfolgreich gefangen: Du hältst den Fisch erst stolz über den Kopf, dann erscheinen Gewicht und Punkte.
+- Jeder Wurf verbraucht 1 Köder. Ohne Köder kein Wurf – und ohne Geld für Nachschub heißt es neu starten.
 - Über den **✕**-Button jederzeit die Angel-Session beenden und die Zusammenfassung sehen (Gesamtpunkte, Anzahl Fische, größter Fang, Liste aller Fänge).
 
 ## Die 13 Fischarten
@@ -68,6 +69,19 @@ Nach jedem Fang besteht eine kleine Chance, dass es sich um eine seltene Variant
 | Drachen-Angel | 5000 Punkte | 3 Tastendrücke weniger, am meisten Zeit – und einzige Rute, an der der Seedrache anbeißt |
 
 Gekaufte Ruten bleiben für die restliche Sitzung erhalten und lassen sich im Laden jederzeit wechseln.
+
+## Köder
+
+Jeder Wurf kostet 1 Köder aus dem Köcher. Bessere Köder machen die Fische **nicht leichter zu fangen** (das macht die Rute) – sie verschieben nur die Zufallsauswahl stark zugunsten seltener, wertvoller Arten. Köder werden in Tüten zu je 20 Stück gekauft und stapeln sich im Köcher:
+
+| Köder | Preis (20 Stück) | Effekt |
+|---|---|---|
+| Standardköder | 60 Punkte | normale Fangchancen |
+| Premiumköder | 120 Punkte | deutlich höhere Chance auf größere Fische |
+| Profiköder | 500 Punkte | starker Zug zu seltenen Fängen |
+| Meisterköder | 1000 Punkte | maximale Chance auf die seltensten Fänge |
+
+Ist der Köcher leer, kannst du nicht mehr werfen. Reicht das Guthaben noch für eine Tüte, schickt dich das Spiel in den Laden. Reicht es auch dafür nicht mehr, bleibt nur der Neustart – der setzt Punkte, Ruten **und** Köder auf den Anfangszustand zurück (eine Starter-Tüte Standardköder).
 
 ## Technik
 
