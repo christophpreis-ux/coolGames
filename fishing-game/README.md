@@ -22,9 +22,9 @@ python3 -m http.server 8080
 - Erfolgreich gefangen: Du hältst den Fisch erst stolz über den Kopf, dann erscheinen Gewicht und Punkte.
 - Über den **✕**-Button jederzeit die Angel-Session beenden und die Zusammenfassung sehen (Gesamtpunkte, Anzahl Fische, größter Fang, Liste aller Fänge).
 
-## Die 8 Fischarten
+## Die 13 Fischarten
 
-Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art braucht, desto schwerer ist sie und desto mehr Punkte bringt sie:
+Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art braucht, desto mehr Punkte bringt sie. Welche Art anbeißt, wird zufällig (gewichtet nach Seltenheit) bestimmt:
 
 | Fisch | Tastendrücke | Gewicht | Punkte |
 |---|---|---|---|
@@ -36,21 +36,39 @@ Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art brauc
 | 🐡 Blauflossen-Thunfisch | 7 | 50–300 kg | 480 |
 | 🦈 Weißer Hai | 9 | 500–1100 kg | 700 |
 | 🐋 Blauwal | 10 | 100–150 t | 1200 |
+| 🦑 Riesenkalmar | 11 | 150–450 kg | 1450 |
+| 🐟 Mondfisch | 12 | 300–2300 kg | 1700 |
+| 🦈 Grönlandhai | 13 | 400–1000 kg | 1950 |
+| 🐋 Pottwal | 14 | 35–45 t | 2200 |
+| 🐉 **Seedrache** | 15 | 150–300 g | 3000 |
 
-Welche Art anbeißt, wird zufällig (gewichtet nach Seltenheit) bestimmt – der Blauwal ist entsprechend selten.
+Der Seedrache ist eine Ausnahme: Er beißt **nur an, wenn die Drachen-Angel ausgerüstet ist** – ohne sie taucht er im Zufallspool gar nicht erst auf.
+
+## Mutationen
+
+Nach jedem Fang besteht eine kleine Chance, dass es sich um eine seltene Variante handelt – erst nach dem Anlanden sichtbar, dafür umso wertvoller:
+
+| Mutation | Chance | Effekt |
+|---|---|---|
+| 📏 Riesenexemplar | 6 % | +40 % Punkte, +50 % Gewicht |
+| ✨ Glitzerschuppen | 4 % | +60 % Punkte, glitzert |
+| 🤍 Albino | 2,5 % | +80 % Punkte |
+| 🦴 Uralt | 1,5 % | +100 % Punkte |
+| 👑 Goldrausch | 0,8 % | +150 % Punkte, glitzert golden |
 
 ## Angelladen
 
-Über das 🛒-Symbol im Spiel öffnest du den Laden. Dort kannst du dir mit deinen gesammelten Punkten bessere Ruten kaufen – sie brauchen weniger Tastendrücke und geben mehr Zeit pro Druck, die Fangchance bleibt aber unabhängig von der Rute (Punkte/Gewicht richten sich immer nach der Fischart):
+Über das 🛒-Symbol im Spiel öffnest du den Laden. Dort kannst du dir mit deinen gesammelten Punkten bessere Ruten kaufen – jede mit eigenem Design, sowohl im Laden als auch als Rute in der Szene. Sie brauchen weniger Tastendrücke und geben mehr Zeit pro Druck; die Belohnung richtet sich aber immer nach der Fischart, nicht nach der Rute:
 
 | Rute | Preis | Effekt |
 |---|---|---|
 | Standardrute | kostenlos | volle Tastenfolge, normales Tempo |
 | Gold-Angel | 350 Punkte | 1 Tastendruck weniger, mehr Zeit pro Druck |
 | Diamant-Angel | 900 Punkte | 2 Tastendrücke weniger, noch mehr Zeit pro Druck |
+| Drachen-Angel | 5000 Punkte | 3 Tastendrücke weniger, am meisten Zeit – und einzige Rute, an der der Seedrache anbeißt |
 
 Gekaufte Ruten bleiben für die restliche Sitzung erhalten und lassen sich im Laden jederzeit wechseln.
 
 ## Technik
 
-Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose) wird komplett auf Canvas 2D gezeichnet. Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten werden gewichtet zufällig ausgewählt; gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.
+Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (der Seedrache nur aus dem Pool, wenn die Drachen-Angel ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.
