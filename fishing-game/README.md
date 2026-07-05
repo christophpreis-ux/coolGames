@@ -40,9 +40,9 @@ Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art brauc
 | 🐟 Mondfisch | 12 | 300–2300 kg | 1700 |
 | 🦈 Grönlandhai | 13 | 400–1000 kg | 1950 |
 | 🐋 Pottwal | 14 | 35–45 t | 2200 |
-| 🐉 **Seedrache** | 15 | 150–300 g | 3000 |
+| 🐉 **Seedrache** | 15 | 2–5 t | 3000 |
 
-Der Seedrache ist eine Ausnahme: Er beißt **nur an, wenn die Drachen-Angel ausgerüstet ist** – ohne sie taucht er im Zufallspool gar nicht erst auf.
+Der Seedrache ist eine Ausnahme in mehrfacher Hinsicht: Er beißt **nur an, wenn die Drachen-Angel ausgerüstet ist** – ohne sie taucht er im Zufallspool gar nicht erst auf. Und statt der normalen Fischform ist er eine große, gewellte Seeschlange mit Drachenkopf und Hörnern – ein komplett eigenes Design, deutlich größer als jeder andere Fang im Spiel.
 
 ## Mutationen
 
@@ -71,4 +71,4 @@ Gekaufte Ruten bleiben für die restliche Sitzung erhalten und lassen sich im La
 
 ## Technik
 
-Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (der Seedrache nur aus dem Pool, wenn die Drachen-Angel ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.
+Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Normale Fische haben einen torpedoförmigen Körper mit gegabelter Schwanzflosse, Rücken-/Brustflosse und einem richtigen Auge; der Seedrache nutzt stattdessen eine eigene Zeichenfunktion für einen gewellten Schlangenkörper mit Drachenkopf. Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (der Seedrache nur aus dem Pool, wenn die Drachen-Angel ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.

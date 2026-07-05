@@ -50,9 +50,9 @@ const FISH_SPECIES = [
     points: 1950, rarity: 0.15, emoji: "🦈", color: "#6b7d8a", colorDark: "#46545c", sizeScale: 2.15 },
   { id: "pottwal", name: "Pottwal", presses: 14, weight: [35, 45], unit: "t",
     points: 2200, rarity: 0.08, emoji: "🐋", color: "#4a5a68", colorDark: "#2e3a44", sizeScale: 2.3 },
-  { id: "seedrache", name: "Seedrache", presses: 15, weight: [150, 300], unit: "g",
-    points: 3000, rarity: 1.5, emoji: "🐉", color: "#8fae5a", colorDark: "#5f7a3a", sizeScale: 0.9,
-    requiresRod: "dragon" },
+  { id: "seedrache", name: "Seedrache", presses: 15, weight: [2, 5], unit: "t",
+    points: 3000, rarity: 1.5, emoji: "🐉", color: "#4c9a5a", colorDark: "#2f6b3a", sizeScale: 2.8,
+    shape: "serpent", requiresRod: "dragon" },
 ];
 
 // 5 Mutationen: seltene Varianten, die einen gefangenen Fisch mehr wert
@@ -679,27 +679,172 @@ function drawScene(now) {
   ctx.fillRect(0, waterY - h * 0.02, bw * 0.7, h * 0.03);
 }
 
+// Normale Fischform: kopfseitig bei +x, Schwanz bei -x. Mit gegabelter
+// Schwanzflosse, Rücken-/Brustflosse, Bauchschattierung und einem
+// richtigen Auge statt nur einem Punkt.
 function drawFishShape(scale, color, colorDark) {
   const bodyRX = canvas.width * 0.028 * scale;
-  const bodyRY = canvas.width * 0.013 * scale;
+  const bodyRY = canvas.width * 0.0145 * scale;
 
+  // Körper (spitz zulaufender Torpedo-Umriss statt reiner Ellipse)
   ctx.beginPath();
-  ctx.ellipse(0, 0, bodyRX, bodyRY, 0, 0, Math.PI * 2);
+  ctx.moveTo(bodyRX, 0);
+  ctx.bezierCurveTo(bodyRX, -bodyRY * 1.2, -bodyRX * 0.55, -bodyRY, -bodyRX * 0.95, -bodyRY * 0.22);
+  ctx.bezierCurveTo(-bodyRX * 1.08, 0, -bodyRX * 1.08, 0, -bodyRX * 0.95, bodyRY * 0.22);
+  ctx.bezierCurveTo(-bodyRX * 0.55, bodyRY, bodyRX, bodyRY * 1.2, bodyRX, 0);
+  ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
 
+  // Bauchschattierung, an den Körperumriss geklemmt
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
   ctx.beginPath();
-  ctx.moveTo(-bodyRX * 0.93, 0);
-  ctx.lineTo(-bodyRX * 1.6, -bodyRY * 0.9);
-  ctx.lineTo(-bodyRX * 1.6, bodyRY * 0.9);
+  ctx.ellipse(-bodyRX * 0.05, bodyRY * 0.55, bodyRX * 0.95, bodyRY * 0.65, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Gegabelte Schwanzflosse
+  const tailX = -bodyRX * 0.95;
+  ctx.beginPath();
+  ctx.moveTo(tailX, 0);
+  ctx.lineTo(tailX - bodyRX * 0.7, -bodyRY * 1.35);
+  ctx.lineTo(tailX - bodyRX * 0.3, 0);
+  ctx.lineTo(tailX - bodyRX * 0.7, bodyRY * 1.35);
   ctx.closePath();
   ctx.fillStyle = colorDark;
   ctx.fill();
 
+  // Rückenflosse
   ctx.beginPath();
-  ctx.arc(bodyRX * 0.5, -bodyRY * 0.25, Math.max(1, bodyRX * 0.1), 0, Math.PI * 2);
+  ctx.moveTo(bodyRX * 0.1, -bodyRY * 0.75);
+  ctx.lineTo(bodyRX * 0.32, -bodyRY * 1.75);
+  ctx.lineTo(bodyRX * 0.5, -bodyRY * 0.6);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  // Brustflosse
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 0.2, bodyRY * 0.5);
+  ctx.lineTo(bodyRX * 0.05, bodyRY * 1.5);
+  ctx.lineTo(bodyRX * 0.48, bodyRY * 0.7);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  // Kiemenbogen
+  ctx.strokeStyle = "rgba(0,0,0,0.22)";
+  ctx.lineWidth = Math.max(1, bodyRX * 0.05);
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.5, 0, bodyRY * 0.6, -Math.PI * 0.55, Math.PI * 0.55);
+  ctx.stroke();
+
+  // Auge (weiß + Pupille + Glanzpunkt)
+  const eyeX = bodyRX * 0.63, eyeY = -bodyRY * 0.18;
+  ctx.beginPath();
+  ctx.arc(eyeX, eyeY, Math.max(1.6, bodyRX * 0.135), 0, Math.PI * 2);
+  ctx.fillStyle = "#f4f6f8";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(eyeX + bodyRX * 0.02, eyeY, Math.max(1, bodyRX * 0.07), 0, Math.PI * 2);
   ctx.fillStyle = "#14171b";
   ctx.fill();
+  ctx.beginPath();
+  ctx.arc(eyeX - bodyRX * 0.02, eyeY - bodyRY * 0.06, Math.max(0.6, bodyRX * 0.03), 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+}
+
+// Der Seedrache ist kein Fisch, sondern eine große Seeschlange: gewellter
+// Buckel-Körper (wie ein klassisches Seeungeheuer), Drachenkopf mit
+// Hörnern statt Fischkopf. Kopf liegt bei +x, Schwanzspitze bei -x, damit
+// sie sich wie drawFishShape in bestehende Rotationen/Positionen einfügt.
+function drawSeaDragon(scale, color, colorDark) {
+  const unit = canvas.width * 0.012 * scale;
+  const humpCount = 4;
+
+  // Der Körper ist von der Form her nicht symmetrisch um (0,0) (der Kopf
+  // ragt weniger weit nach +x als der Schwanz nach -x reicht) -> hier
+  // rezentrieren, damit die Kreatur beim Halten mittig über dem Kopf sitzt.
+  ctx.save();
+  ctx.translate(unit * 2.3, 0);
+
+  // Schwanzspitze
+  ctx.beginPath();
+  ctx.moveTo(-unit * 8.6, unit * 1.1);
+  ctx.quadraticCurveTo(-unit * 10.8, unit * 2.4, -unit * 12.2, unit * 0.9);
+  ctx.quadraticCurveTo(-unit * 10.6, unit * 0.15, -unit * 8.6, unit * 0.55);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  // Gewellte Rückenbuckel, vom Schwanz (klein) zum Kopf (groß)
+  for (let i = humpCount; i >= 0; i--) {
+    const t = i / humpCount;
+    const x = unit * 1.6 - unit * 7.6 * t;
+    const y = Math.sin(i * 1.3) * unit * 1.05;
+    const r = unit * (2.5 - t * 1.25);
+
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * 0.72, 0, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Rückenzacke auf jedem Buckel
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.5, y - r * 0.55);
+    ctx.lineTo(x, y - r * 1.55);
+    ctx.lineTo(x + r * 0.5, y - r * 0.55);
+    ctx.closePath();
+    ctx.fillStyle = colorDark;
+    ctx.fill();
+  }
+
+  // Drachenkopf
+  const headX = unit * 4.1, headY = 0, headR = unit * 2.9;
+  ctx.beginPath();
+  ctx.ellipse(headX, headY, headR, headR * 0.82, 0, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Schnauze
+  ctx.beginPath();
+  ctx.ellipse(headX + headR * 0.95, headY + headR * 0.12, headR * 0.5, headR * 0.36, 0, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Hörner
+  ctx.strokeStyle = colorDark;
+  ctx.lineWidth = Math.max(1.5, unit * 0.32);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(headX - headR * 0.15, headY - headR * 0.65);
+  ctx.lineTo(headX, headY - headR * 1.5);
+  ctx.moveTo(headX + headR * 0.4, headY - headR * 0.6);
+  ctx.lineTo(headX + headR * 0.55, headY - headR * 1.4);
+  ctx.stroke();
+
+  // Auge
+  ctx.beginPath();
+  ctx.arc(headX + headR * 0.55, headY - headR * 0.25, headR * 0.17, 0, Math.PI * 2);
+  ctx.fillStyle = "#f4f6f8";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(headX + headR * 0.6, headY - headR * 0.25, headR * 0.09, 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawCreature(species, scale, color, colorDark) {
+  if (species.shape === "serpent") {
+    drawSeaDragon(scale, color, colorDark);
+  } else {
+    drawFishShape(scale, color, colorDark);
+  }
 }
 
 function drawStar(cx, cy, r, alpha) {
@@ -774,10 +919,12 @@ function drawAngler(now, fallProgress, holdInfo) {
   if (holdInfo) {
     const fishY = bodyTopY - headR * 2.6 - canvas.height * 0.02 + bob;
     const visual = fishVisual(holdInfo.species, holdInfo.mutation);
-    const heldScale = Math.min(visual.scale, 2.2);
+    // Der Seedrache darf richtig groß bleiben; normale Fische werden
+    // gedeckelt, damit sie über dem Kopf nicht den ganzen Bildschirm füllen.
+    const heldScale = holdInfo.species.shape === "serpent" ? visual.scale : Math.min(visual.scale, 2.2);
     ctx.save();
     ctx.translate(bodyX, fishY);
-    drawFishShape(heldScale, visual.color, visual.colorDark);
+    drawCreature(holdInfo.species, heldScale, visual.color, visual.colorDark);
     ctx.restore();
     if (visual.sparkle) {
       drawSparkles(bodyX, fishY, canvas.width * 0.03 * heldScale, now);
@@ -876,7 +1023,7 @@ function drawFishJump(progress, species, mutation, now) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-0.3 + arc * 0.5);
-  drawFishShape(visual.scale, visual.color, visual.colorDark);
+  drawCreature(species, visual.scale, visual.color, visual.colorDark);
   ctx.restore();
 
   if (visual.sparkle) {
