@@ -23,9 +23,9 @@ python3 -m http.server 8080
 - Jeder Wurf verbraucht 1 Köder. Ohne Köder kein Wurf – und ohne Geld für Nachschub heißt es neu starten.
 - Über den **✕**-Button jederzeit die Angel-Session beenden und die Zusammenfassung sehen (Gesamtpunkte, Anzahl Fische, größter Fang, Liste aller Fänge).
 
-## Die 13 Fischarten
+## Die 19 Fisch-/Meeresarten
 
-Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art braucht, desto mehr Punkte bringt sie. Welche Art anbeißt, wird zufällig (gewichtet nach Seltenheit) bestimmt:
+Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art braucht, desto mehr Punkte bringt sie. Welche Art anbeißt, wird zufällig (gewichtet nach Seltenheit) bestimmt. Jede Art hat außerdem eine eigene, art-typische Silhouette statt nur einer anderen Farbe – Haie, Thunfische, Schwertfische, Wale, Scheibenfische (Mondfisch) und Kopffüßer (Kalmare) sehen alle grundlegend anders aus:
 
 | Fisch | Tastendrücke | Gewicht | Punkte |
 |---|---|---|---|
@@ -35,27 +35,46 @@ Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art brauc
 | 🐠 Hecht | 5 | 2–9 kg | 260 |
 | 🐡 Lachs | 6 | 3–14 kg | 360 |
 | 🐡 Blauflossen-Thunfisch | 7 | 50–300 kg | 480 |
+| 🐟 Schwertfisch | 8 | 50–150 kg | 590 |
 | 🦈 Weißer Hai | 9 | 500–1100 kg | 700 |
 | 🐋 Blauwal | 10 | 100–150 t | 1200 |
 | 🦑 Riesenkalmar | 11 | 150–450 kg | 1450 |
 | 🐟 Mondfisch | 12 | 300–2300 kg | 1700 |
 | 🦈 Grönlandhai | 13 | 400–1000 kg | 1950 |
 | 🐋 Pottwal | 14 | 35–45 t | 2200 |
-| 🐉 **Seedrache** | 15 | 2–5 t | 3000 |
+| 🐉 Seedrache | 15 | 2–5 t | 3000 |
+| 🦈 Walhai | 16 | 10–20 t | 2500 |
+| 🦑 Kolosskalmar | 17 | 400–750 kg | 2800 |
+| 🐋 Grönlandwal | 18 | 60–100 t | 3100 |
+| 🦈 Megalodon | 19 | 30–65 t | 3500 |
+| 🐙 **Kraken (Endboss)** | 20 | 10–20 t | 6000 |
 
-Der Seedrache ist eine Ausnahme in mehrfacher Hinsicht: Er beißt **nur an, wenn die Drachen-Angel ausgerüstet ist** – ohne sie taucht er im Zufallspool gar nicht erst auf. Und statt der normalen Fischform ist er eine große, gewellte Seeschlange mit Drachenkopf und Hörnern – ein komplett eigenes Design, deutlich größer als jeder andere Fang im Spiel.
+Zwei Arten sind exklusiv an eine bestimmte Rute gebunden – ohne sie tauchen sie im Zufallspool gar nicht erst auf, egal wie gut der Köder ist:
+
+- **Seedrache** (nur mit Drachen-Angel): keine kleine Fischform, sondern eine große, gewellte Seeschlange mit Drachenkopf und Hörnern.
+- **Kraken** (nur mit Kraken-Angel): der echte Endboss – ein riesiger, bedrohlicher Tintenfisch mit gezacktem Mantel, glühend roten Augen und sieben peitschenden, saugnapfbesetzten Tentakeln. Größer und wertvoller als jeder andere Fang im Spiel.
 
 ## Mutationen
 
-Nach jedem Fang besteht eine kleine Chance, dass es sich um eine seltene Variante handelt – erst nach dem Anlanden sichtbar, dafür umso wertvoller:
+Nach jedem Fang besteht eine kleine Chance, dass es sich um eine seltene Variante handelt – erst nach dem Anlanden sichtbar, dafür umso wertvoller. 15 verschiedene Mutationen sind möglich:
 
 | Mutation | Chance | Effekt |
 |---|---|---|
 | 📏 Riesenexemplar | 6 % | +40 % Punkte, +50 % Gewicht |
+| 🤏 Zwergexemplar | 5 % | +30 % Punkte, −40 % Gewicht |
 | ✨ Glitzerschuppen | 4 % | +60 % Punkte, glitzert |
+| 🌑 Schattenfisch | 1,8 % | +90 % Punkte |
 | 🤍 Albino | 2,5 % | +80 % Punkte |
+| ⚙️ Metallisch | 1,6 % | +95 % Punkte, glitzert |
+| ❄️ Eisig | 1,3 % | +85 % Punkte |
 | 🦴 Uralt | 1,5 % | +100 % Punkte |
+| 💎 Kristallschuppen | 1,2 % | +110 % Punkte, glitzert |
+| 🔥 Feurig | 1,0 % | +100 % Punkte |
+| 2️⃣ Zweiköpfig | 1,0 % | +120 % Punkte |
+| ☢️ Radioaktiv | 0,6 % | +160 % Punkte, glitzert |
 | 👑 Goldrausch | 0,8 % | +150 % Punkte, glitzert golden |
+| 🌈 Regenbogenglanz | 0,4 % | +200 % Punkte, glitzert |
+| 🌌 Kosmisch | 0,2 % | +250 % Punkte, glitzert |
 
 ## Angelladen
 
@@ -66,7 +85,12 @@ Nach jedem Fang besteht eine kleine Chance, dass es sich um eine seltene Variant
 | Standardrute | kostenlos | volle Tastenfolge, normales Tempo |
 | Gold-Angel | 350 Punkte | 1 Tastendruck weniger, mehr Zeit pro Druck |
 | Diamant-Angel | 900 Punkte | 2 Tastendrücke weniger, noch mehr Zeit pro Druck |
-| Drachen-Angel | 5000 Punkte | 3 Tastendrücke weniger, am meisten Zeit – und einzige Rute, an der der Seedrache anbeißt |
+| Platin-Angel | 1.600 Punkte | wie Diamant, aber mit mehr Zeit pro Druck |
+| Titan-Angel | 2.800 Punkte | 3 Tastendrücke weniger |
+| Drachen-Angel | 5.000 Punkte | 3 Tastendrücke weniger – einzige Rute, an der der Seedrache anbeißt |
+| Legenden-Angel | 6.500 Punkte | 4 Tastendrücke weniger |
+| Mythos-Angel | 9.000 Punkte | 5 Tastendrücke weniger |
+| Kraken-Angel | 15.000 Punkte | 5 Tastendrücke weniger, am meisten Zeit – einzige Rute, an der der Kraken anbeißt |
 
 Gekaufte Ruten bleiben für die restliche Sitzung erhalten und lassen sich im Laden jederzeit wechseln.
 
@@ -85,4 +109,4 @@ Ist der Köcher leer, kannst du nicht mehr werfen. Reicht das Guthaben noch für
 
 ## Technik
 
-Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Normale Fische haben einen torpedoförmigen Körper mit gegabelter Schwanzflosse, Rücken-/Brustflosse und einem richtigen Auge; der Seedrache nutzt stattdessen eine eigene Zeichenfunktion für einen gewellten Schlangenkörper mit Drachenkopf. Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (der Seedrache nur aus dem Pool, wenn die Drachen-Angel ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.
+Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Jede Art bekommt eine von acht art-typischen Silhouetten (`drawCreature` wählt anhand von `species.shape`): normaler Fisch (Torpedokörper, gegabelte Schwanzflosse), Thunfisch (schlank, Halbmondschwanz, Finlets), Schwertfisch (langer Schnabel, Segelflosse), Hai (spitze Schnauze, hohe Rückenflosse, asymmetrischer Schwanz, Kiemenspalten), Wal (rundlicher Körper, horizontale Fluke, Blasloch, Paddelflosse), Scheibenfisch (Mondfisch: rund, gespiegelte Riesenflossen, Stummelschwanz), Kopffüßer (Mantel + Tentakel, für Riesen-/Kolosskalmar) und die beiden Unikate Seedrache (Seeschlange mit Drachenkopf) und Kraken (überdimensionaler, gezackter Tintenfisch mit glühenden Augen). Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (Seedrache/Kraken nur aus dem Pool, wenn die passende Rute ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.

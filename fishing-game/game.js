@@ -21,63 +21,106 @@ const FAIL_ANIM_DURATION = 0.9;
 const SUCCESS_JUMP_DURATION = 0.7;
 const SUCCESS_HOLD_DURATION = 1.0;
 
-// 13 real fish/tiere, geordnet nach Schwierigkeit. Mehr Tastendrücke ->
-// mehr Punkte. Der Blauwal und die höheren Tiere sind seltene Legenden.
-// Der Seedrache braucht zusätzlich die exklusive Drachen-Angel, sonst
-// beißt er gar nicht erst an (siehe requiresRod).
+// 19 Fisch-/Meeresarten, geordnet nach Schwierigkeit. Mehr Tastendrücke ->
+// mehr Punkte. "shape" bestimmt die art-typische Silhouette beim Zeichnen
+// (siehe drawCreature) – jede Art sieht so aus wie ihre echte Tiergruppe,
+// nicht nur andersfarbig. Seedrache und Kraken brauchen zusätzlich eine
+// exklusive Angel, sonst beißen sie gar nicht erst an (siehe requiresRod).
 const FISH_SPECIES = [
   { id: "rotfeder", name: "Rotfeder", presses: 2, weight: [80, 350], unit: "g",
-    points: 60, rarity: 30, emoji: "🐟", color: "#9fb8c9", colorDark: "#6f8fa3", sizeScale: 0.7 },
+    points: 60, rarity: 30, emoji: "🐟", color: "#9fb8c9", colorDark: "#6f8fa3", sizeScale: 0.7, shape: "fish" },
   { id: "barsch", name: "Flussbarsch", presses: 3, weight: [150, 700], unit: "g",
-    points: 110, rarity: 24, emoji: "🐟", color: "#7fae6a", colorDark: "#557a45", sizeScale: 0.85 },
+    points: 110, rarity: 24, emoji: "🐟", color: "#7fae6a", colorDark: "#557a45", sizeScale: 0.85, shape: "fish" },
   { id: "karpfen", name: "Karpfen", presses: 4, weight: [1.5, 8], unit: "kg",
-    points: 180, rarity: 18, emoji: "🐠", color: "#c2a45a", colorDark: "#8f7639", sizeScale: 1.0 },
+    points: 180, rarity: 18, emoji: "🐠", color: "#c2a45a", colorDark: "#8f7639", sizeScale: 1.0, shape: "fish" },
   { id: "hecht", name: "Hecht", presses: 5, weight: [2, 9], unit: "kg",
-    points: 260, rarity: 12, emoji: "🐠", color: "#5c8a5c", colorDark: "#3d603d", sizeScale: 1.15 },
+    points: 260, rarity: 12, emoji: "🐠", color: "#5c8a5c", colorDark: "#3d603d", sizeScale: 1.15, shape: "fish" },
   { id: "lachs", name: "Lachs", presses: 6, weight: [3, 14], unit: "kg",
-    points: 360, rarity: 8, emoji: "🐡", color: "#e08a6a", colorDark: "#a85c42", sizeScale: 1.3 },
+    points: 360, rarity: 8, emoji: "🐡", color: "#e08a6a", colorDark: "#a85c42", sizeScale: 1.3, shape: "fish" },
   { id: "thunfisch", name: "Blauflossen-Thunfisch", presses: 7, weight: [50, 300], unit: "kg",
-    points: 480, rarity: 5, emoji: "🐡", color: "#3f5f7a", colorDark: "#263c4d", sizeScale: 1.55 },
+    points: 480, rarity: 5, emoji: "🐡", color: "#3f5f7a", colorDark: "#263c4d", sizeScale: 1.55, shape: "tuna" },
+  { id: "schwertfisch", name: "Schwertfisch", presses: 8, weight: [50, 150], unit: "kg",
+    points: 590, rarity: 3.8, emoji: "🐟", color: "#7a94a8", colorDark: "#4f6577", sizeScale: 1.7, shape: "billfish" },
   { id: "hai", name: "Weißer Hai", presses: 9, weight: [500, 1100], unit: "kg",
-    points: 700, rarity: 2.5, emoji: "🦈", color: "#8f9aa3", colorDark: "#5f6870", sizeScale: 1.9 },
+    points: 700, rarity: 2.5, emoji: "🦈", color: "#8f9aa3", colorDark: "#5f6870", sizeScale: 1.9, shape: "shark" },
   { id: "blauwal", name: "Blauwal", presses: 10, weight: [100, 150], unit: "t",
-    points: 1200, rarity: 0.5, emoji: "🐋", color: "#3a5a78", colorDark: "#223549", sizeScale: 2.4 },
+    points: 1200, rarity: 0.5, emoji: "🐋", color: "#3a5a78", colorDark: "#223549", sizeScale: 2.4, shape: "whale" },
   { id: "riesenkalmar", name: "Riesenkalmar", presses: 11, weight: [150, 450], unit: "kg",
-    points: 1450, rarity: 0.35, emoji: "🦑", color: "#5a4a7a", colorDark: "#3a2f52", sizeScale: 2.0 },
+    points: 1450, rarity: 0.35, emoji: "🦑", color: "#5a4a7a", colorDark: "#3a2f52", sizeScale: 2.0, shape: "cephalopod" },
   { id: "mondfisch", name: "Mondfisch", presses: 12, weight: [300, 2300], unit: "kg",
-    points: 1700, rarity: 0.22, emoji: "🐟", color: "#b9c4cc", colorDark: "#8996a1", sizeScale: 2.1 },
+    points: 1700, rarity: 0.22, emoji: "🐟", color: "#b9c4cc", colorDark: "#8996a1", sizeScale: 2.1, shape: "disc" },
   { id: "groenlandhai", name: "Grönlandhai", presses: 13, weight: [400, 1000], unit: "kg",
-    points: 1950, rarity: 0.15, emoji: "🦈", color: "#6b7d8a", colorDark: "#46545c", sizeScale: 2.15 },
+    points: 1950, rarity: 0.15, emoji: "🦈", color: "#6b7d8a", colorDark: "#46545c", sizeScale: 2.15, shape: "shark" },
   { id: "pottwal", name: "Pottwal", presses: 14, weight: [35, 45], unit: "t",
-    points: 2200, rarity: 0.08, emoji: "🐋", color: "#4a5a68", colorDark: "#2e3a44", sizeScale: 2.3 },
+    points: 2200, rarity: 0.08, emoji: "🐋", color: "#4a5a68", colorDark: "#2e3a44", sizeScale: 2.3, shape: "whale" },
   { id: "seedrache", name: "Seedrache", presses: 15, weight: [2, 5], unit: "t",
     points: 3000, rarity: 1.5, emoji: "🐉", color: "#4c9a5a", colorDark: "#2f6b3a", sizeScale: 2.8,
     shape: "serpent", requiresRod: "dragon" },
+  { id: "walhai", name: "Walhai", presses: 16, weight: [10, 20], unit: "t",
+    points: 2500, rarity: 0.06, emoji: "🦈", color: "#5a7a92", colorDark: "#37546b", sizeScale: 2.6, shape: "shark" },
+  { id: "kolosskalmar", name: "Kolosskalmar", presses: 17, weight: [400, 750], unit: "kg",
+    points: 2800, rarity: 0.045, emoji: "🦑", color: "#9a3f3f", colorDark: "#6b2626", sizeScale: 2.3, shape: "cephalopod" },
+  { id: "groenlandwal", name: "Grönlandwal", presses: 18, weight: [60, 100], unit: "t",
+    points: 3100, rarity: 0.03, emoji: "🐋", color: "#39465a", colorDark: "#232c3a", sizeScale: 2.5, shape: "whale" },
+  { id: "megalodon", name: "Megalodon", presses: 19, weight: [30, 65], unit: "t",
+    points: 3500, rarity: 0.015, emoji: "🦈", color: "#33383f", colorDark: "#1c1f24", sizeScale: 3.0, shape: "shark" },
+  { id: "kraken", name: "Kraken", presses: 20, weight: [10, 20], unit: "t",
+    points: 6000, rarity: 2, emoji: "🐙", color: "#3a2350", colorDark: "#1f1230", sizeScale: 3.6,
+    shape: "kraken", requiresRod: "kraken" },
 ];
 
-// 5 Mutationen: seltene Varianten, die einen gefangenen Fisch mehr wert
+// 15 Mutationen: seltene Varianten, die einen gefangenen Fisch mehr wert
 // machen. Werden erst nach dem Fang aufgedeckt (Überraschungseffekt).
 const MUTATIONS = [
   { id: "riese", name: "Riesenexemplar", prefixEmoji: "📏", chance: 6,
     pointMultiplier: 1.4, weightMultiplier: 1.5, sizeMultiplier: 1.3 },
+  { id: "zwerg", name: "Zwergexemplar", prefixEmoji: "🤏", chance: 5,
+    pointMultiplier: 1.3, weightMultiplier: 0.6, sizeMultiplier: 0.6 },
   { id: "glitzer", name: "Glitzerschuppen", prefixEmoji: "✨", chance: 4,
     pointMultiplier: 1.6, weightMultiplier: 1.0, sizeMultiplier: 1.0,
     colorOverride: "#eae6c8", colorDarkOverride: "#c9c49a", sparkle: true },
+  { id: "schatten", name: "Schattenfisch", prefixEmoji: "🌑", chance: 1.8,
+    pointMultiplier: 1.9, weightMultiplier: 1.0, sizeMultiplier: 1.0,
+    colorOverride: "#232323", colorDarkOverride: "#101010" },
   { id: "albino", name: "Albino", prefixEmoji: "🤍", chance: 2.5,
     pointMultiplier: 1.8, weightMultiplier: 1.05, sizeMultiplier: 1.05,
     colorOverride: "#f4f6f8", colorDarkOverride: "#c7ccd1" },
+  { id: "metallisch", name: "Metallisch", prefixEmoji: "⚙️", chance: 1.6,
+    pointMultiplier: 1.95, weightMultiplier: 1.1, sizeMultiplier: 1.0,
+    colorOverride: "#c7ccd1", colorDarkOverride: "#8f969c", sparkle: true },
+  { id: "eisig", name: "Eisig", prefixEmoji: "❄️", chance: 1.3,
+    pointMultiplier: 1.85, weightMultiplier: 1.0, sizeMultiplier: 1.0,
+    colorOverride: "#dff4ff", colorDarkOverride: "#a8d8e8" },
   { id: "uralt", name: "Uralt", prefixEmoji: "🦴", chance: 1.5,
     pointMultiplier: 2.0, weightMultiplier: 1.2, sizeMultiplier: 1.15,
     colorOverride: "#6b6650", colorDarkOverride: "#454130" },
+  { id: "kristall", name: "Kristallschuppen", prefixEmoji: "💎", chance: 1.2,
+    pointMultiplier: 2.1, weightMultiplier: 1.0, sizeMultiplier: 1.0,
+    colorOverride: "#bfe9ff", colorDarkOverride: "#8fcbe0", sparkle: true },
+  { id: "feurig", name: "Feurig", prefixEmoji: "🔥", chance: 1.0,
+    pointMultiplier: 2.0, weightMultiplier: 1.0, sizeMultiplier: 1.05,
+    colorOverride: "#ff6a3c", colorDarkOverride: "#b8401a" },
+  { id: "zweikoepfig", name: "Zweiköpfig", prefixEmoji: "2️⃣", chance: 1.0,
+    pointMultiplier: 2.2, weightMultiplier: 1.05, sizeMultiplier: 1.1,
+    colorOverride: "#7a9a5a", colorDarkOverride: "#4f6a3a" },
+  { id: "radioaktiv", name: "Radioaktiv", prefixEmoji: "☢️", chance: 0.6,
+    pointMultiplier: 2.6, weightMultiplier: 1.05, sizeMultiplier: 1.1,
+    colorOverride: "#aef23c", colorDarkOverride: "#6b9e1f", sparkle: true },
   { id: "gold", name: "Goldrausch", prefixEmoji: "👑", chance: 0.8,
     pointMultiplier: 2.5, weightMultiplier: 1.1, sizeMultiplier: 1.1,
     colorOverride: "#f2c94c", colorDarkOverride: "#b8901f", sparkle: true },
+  { id: "regenbogen", name: "Regenbogenglanz", prefixEmoji: "🌈", chance: 0.4,
+    pointMultiplier: 3.0, weightMultiplier: 1.1, sizeMultiplier: 1.1,
+    colorOverride: "#ff6fae", colorDarkOverride: "#c23f82", sparkle: true },
+  { id: "kosmisch", name: "Kosmisch", prefixEmoji: "🌌", chance: 0.2,
+    pointMultiplier: 3.5, weightMultiplier: 1.3, sizeMultiplier: 1.2,
+    colorOverride: "#2a1a4a", colorDarkOverride: "#1a0f30", sparkle: true },
 ];
 
 // Angelruten: bessere Ruten brauchen weniger Tastendrücke und geben mehr
 // Zeit pro Tastendruck. Werden mit Punkten im Angelladen gekauft. Die
-// Drachen-Angel ist zusätzlich die einzige Möglichkeit, den Seedrachen
-// überhaupt anbeißen zu lassen.
+// Drachen-Angel bzw. Kraken-Angel sind zusätzlich die einzige Möglichkeit,
+// den Seedrachen bzw. den Kraken überhaupt anbeißen zu lassen.
 const RODS = {
   standard: {
     name: "Standardrute", price: 0, pressReduction: 0,
@@ -94,10 +137,35 @@ const RODS = {
     initialTime: 1.9, decay: 0.94, minTime: 0.6,
     desc: "Zwei Tastendrücke weniger nötig und am meisten Zeit pro Druck.",
   },
+  platin: {
+    name: "Platin-Angel", price: 1600, pressReduction: 2,
+    initialTime: 2.0, decay: 0.95, minTime: 0.6,
+    desc: "Wie die Diamant-Angel, aber mit spürbar mehr Zeit pro Druck.",
+  },
+  titan: {
+    name: "Titan-Angel", price: 2800, pressReduction: 3,
+    initialTime: 2.1, decay: 0.955, minTime: 0.65,
+    desc: "Drei Tastendrücke weniger, dazu eine der stabilsten Ruten im Laden.",
+  },
   dragon: {
     name: "Drachen-Angel", price: 5000, pressReduction: 3,
     initialTime: 2.2, decay: 0.97, minTime: 0.7,
-    desc: "Die beste Rute überhaupt – und die einzige, an der der legendäre Seedrache anbeißt.",
+    desc: "Sehr stark – und die einzige Rute, an der der legendäre Seedrache anbeißt.",
+  },
+  legenden: {
+    name: "Legenden-Angel", price: 6500, pressReduction: 4,
+    initialTime: 2.4, decay: 0.97, minTime: 0.72,
+    desc: "Vier Tastendrücke weniger – für die ganz großen Brocken.",
+  },
+  mythos: {
+    name: "Mythos-Angel", price: 9000, pressReduction: 5,
+    initialTime: 2.6, decay: 0.975, minTime: 0.75,
+    desc: "Fünf Tastendrücke weniger und mehr Zeit als jede andere normale Rute.",
+  },
+  kraken: {
+    name: "Kraken-Angel", price: 15000, pressReduction: 5,
+    initialTime: 2.8, decay: 0.98, minTime: 0.8,
+    desc: "Die stärkste und teuerste Rute überhaupt – nur mit ihr beißt der Kraken persönlich an.",
   },
 };
 
@@ -106,7 +174,12 @@ const ROD_VISUALS = {
   standard: { color: "#8a5a3b", accent: null },
   gold: { color: "#e8b93f", accent: "#fff3c4", style: "shine" },
   diamond: { color: "#bfe9ff", accent: "#eafcff", style: "sparkle" },
+  platin: { color: "#d7dde3", accent: "#ffffff", style: "shine" },
+  titan: { color: "#4a5568", accent: "#9fb0c2", style: "shine" },
   dragon: { color: "#7a2020", accent: "#ff7a3c", style: "flame" },
+  legenden: { color: "#6a3fa0", accent: "#c9a6ff", style: "sparkle" },
+  mythos: { color: "#1f9e8a", accent: "#7ffce0", style: "sparkle" },
+  kraken: { color: "#1a1a2e", accent: "#5ee6c4", style: "flame" },
 };
 
 // Köder: brauchst du für jeden Wurf (1 Stück pro Wurf, egal ob Fang oder
@@ -794,7 +867,7 @@ function renderShop() {
     else { label = `Kaufen – ${rod.price} P`; disabled = score < rod.price; }
 
     return `
-      <div class="rod-card ${equipped ? "rod-card-active" : ""} ${id === "dragon" ? "rod-card-legendary" : ""}">
+      <div class="rod-card ${equipped ? "rod-card-active" : ""} ${id === "dragon" || id === "kraken" ? "rod-card-legendary" : ""}">
         <canvas class="rod-icon" data-rod-icon="${id}" width="70" height="70"></canvas>
         <div class="rod-body">
           <div class="rod-name">${rod.name}</div>
@@ -1051,11 +1124,376 @@ function drawSeaDragon(scale, color, colorDark) {
   ctx.restore();
 }
 
+// Hai-Silhouette: spitze Schnauze, hohe dreieckige Rückenflosse,
+// asymmetrische (heterozerke) Schwanzflosse, Kiemenspalten.
+function drawSharkShape(scale, color, colorDark) {
+  const bodyRX = canvas.width * 0.032 * scale;
+  const bodyRY = canvas.width * 0.012 * scale;
+
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 1.15, 0);
+  ctx.quadraticCurveTo(bodyRX * 0.7, -bodyRY * 1.3, 0, -bodyRY * 1.05);
+  ctx.quadraticCurveTo(-bodyRX * 0.75, -bodyRY * 0.55, -bodyRX * 0.95, -bodyRY * 0.15);
+  ctx.quadraticCurveTo(-bodyRX * 0.75, bodyRY * 0.55, 0, bodyRY * 1.05);
+  ctx.quadraticCurveTo(bodyRX * 0.7, bodyRY * 1.3, bodyRX * 1.15, 0);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  ctx.beginPath();
+  ctx.ellipse(0, bodyRY * 0.5, bodyRX * 0.9, bodyRY * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Heterozerke Schwanzflosse: großer oberer, kleiner unterer Lappen
+  const tailX = -bodyRX * 0.95;
+  ctx.beginPath();
+  ctx.moveTo(tailX, -bodyRY * 0.1);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.5, -bodyRY * 2.6, tailX - bodyRX * 0.85, -bodyRY * 2.9);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.5, -bodyRY * 0.9, tailX - bodyRX * 0.15, -bodyRY * 0.05);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(tailX, bodyRY * 0.1);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.35, bodyRY * 1.3, tailX - bodyRX * 0.6, bodyRY * 1.5);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.3, bodyRY * 0.5, tailX - bodyRX * 0.1, bodyRY * 0.05);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  // Hohe dreieckige Rückenflosse
+  ctx.beginPath();
+  ctx.moveTo(-bodyRX * 0.05, -bodyRY * 0.9);
+  ctx.lineTo(bodyRX * 0.05, -bodyRY * 3.1);
+  ctx.lineTo(bodyRX * 0.45, -bodyRY * 0.85);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  // Brustflosse
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 0.15, bodyRY * 0.6);
+  ctx.lineTo(-bodyRX * 0.1, bodyRY * 1.9);
+  ctx.lineTo(bodyRX * 0.5, bodyRY * 0.8);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  // Kiemenspalten
+  ctx.strokeStyle = "rgba(0,0,0,0.28)";
+  ctx.lineWidth = Math.max(1, bodyRX * 0.035);
+  for (let i = 0; i < 4; i++) {
+    const gx = bodyRX * (0.55 - i * 0.11);
+    ctx.beginPath();
+    ctx.moveTo(gx, -bodyRY * 0.75);
+    ctx.lineTo(gx - bodyRX * 0.04, bodyRY * 0.55);
+    ctx.stroke();
+  }
+
+  // Auge
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.78, -bodyRY * 0.1, Math.max(1.4, bodyRX * 0.09), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
+// Thunfisch-Silhouette: schlanker Torpedokörper, sichelförmige Flossen,
+// Halbmond-Schwanzflosse, kleine "Flösschen" (Finlets) am Schwanzansatz.
+function drawTunaShape(scale, color, colorDark) {
+  const bodyRX = canvas.width * 0.03 * scale;
+  const bodyRY = canvas.width * 0.011 * scale;
+
+  ctx.beginPath();
+  ctx.moveTo(bodyRX, 0);
+  ctx.bezierCurveTo(bodyRX * 0.9, -bodyRY * 1.3, -bodyRX * 0.3, -bodyRY * 1.1, -bodyRX * 0.85, -bodyRY * 0.2);
+  ctx.bezierCurveTo(-bodyRX * 0.95, 0, -bodyRX * 0.95, 0, -bodyRX * 0.85, bodyRY * 0.2);
+  ctx.bezierCurveTo(-bodyRX * 0.3, bodyRY * 1.1, bodyRX * 0.9, bodyRY * 1.3, bodyRX, 0);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  const tailX = -bodyRX * 0.85;
+  ctx.beginPath();
+  ctx.moveTo(tailX, 0);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.35, -bodyRY * 0.3, tailX - bodyRX * 0.55, -bodyRY * 1.6);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.25, -bodyRY * 0.5, tailX - bodyRX * 0.1, 0);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.25, bodyRY * 0.5, tailX - bodyRX * 0.55, bodyRY * 1.6);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.35, bodyRY * 0.3, tailX, 0);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 0.1, -bodyRY * 0.85);
+  ctx.quadraticCurveTo(bodyRX * 0.28, -bodyRY * 1.9, bodyRX * 0.55, -bodyRY * 0.75);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  for (let i = 0; i < 4; i++) {
+    const fx = -bodyRX * (0.35 + i * 0.13);
+    ctx.beginPath();
+    ctx.moveTo(fx, -bodyRY * 0.5);
+    ctx.lineTo(fx - bodyRX * 0.04, -bodyRY * 0.85);
+    ctx.lineTo(fx + bodyRX * 0.05, -bodyRY * 0.55);
+    ctx.closePath();
+    ctx.fillStyle = colorDark;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.65, -bodyRY * 0.15, Math.max(1.3, bodyRX * 0.1), 0, Math.PI * 2);
+  ctx.fillStyle = "#f4f6f8";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.67, -bodyRY * 0.15, Math.max(0.8, bodyRX * 0.05), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
+// Schwertfisch-Silhouette: langer spitzer Schnabel, hohe segelartige
+// Rückenflosse.
+function drawBillfishShape(scale, color, colorDark) {
+  const bodyRX = canvas.width * 0.028 * scale;
+  const bodyRY = canvas.width * 0.0105 * scale;
+
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 0.9, -bodyRY * 0.15);
+  ctx.lineTo(bodyRX * 2.1, 0);
+  ctx.lineTo(bodyRX * 0.9, bodyRY * 0.15);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 0.95, 0);
+  ctx.bezierCurveTo(bodyRX * 0.85, -bodyRY * 1.2, -bodyRX * 0.3, -bodyRY, -bodyRX * 0.9, -bodyRY * 0.18);
+  ctx.bezierCurveTo(-bodyRX, 0, -bodyRX, 0, -bodyRX * 0.9, bodyRY * 0.18);
+  ctx.bezierCurveTo(-bodyRX * 0.3, bodyRY, bodyRX * 0.85, bodyRY * 1.2, bodyRX * 0.95, 0);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-bodyRX * 0.35, -bodyRY * 0.85);
+  ctx.quadraticCurveTo(0, -bodyRY * 3.4, bodyRX * 0.45, -bodyRY * 0.8);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.globalAlpha = 0.92;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  const tailX = -bodyRX * 0.9;
+  ctx.beginPath();
+  ctx.moveTo(tailX, 0);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.3, -bodyRY * 0.3, tailX - bodyRX * 0.5, -bodyRY * 1.5);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.2, -bodyRY * 0.4, tailX - bodyRX * 0.08, 0);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.2, bodyRY * 0.4, tailX - bodyRX * 0.5, bodyRY * 1.5);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.3, bodyRY * 0.3, tailX, 0);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.65, -bodyRY * 0.1, Math.max(1.2, bodyRX * 0.09), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
+// Wal-Silhouette: großer runder Körper, horizontale Fluke statt stehender
+// Schwanzflosse, Blasloch, paddelförmige Brustflosse, kaum Rückenflosse.
+function drawWhaleShape(scale, color, colorDark) {
+  const bodyRX = canvas.width * 0.034 * scale;
+  const bodyRY = canvas.width * 0.016 * scale;
+
+  ctx.beginPath();
+  ctx.moveTo(bodyRX, -bodyRY * 0.1);
+  ctx.bezierCurveTo(bodyRX * 0.9, -bodyRY * 1.15, -bodyRX * 0.4, -bodyRY * 1.05, -bodyRX * 0.85, -bodyRY * 0.3);
+  ctx.bezierCurveTo(-bodyRX * 1.02, 0, -bodyRX * 1.02, 0, -bodyRX * 0.85, bodyRY * 0.3);
+  ctx.bezierCurveTo(-bodyRX * 0.4, bodyRY * 1.05, bodyRX * 0.75, bodyRY * 1.1, bodyRX, bodyRY * 0.15);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.beginPath();
+  ctx.ellipse(-bodyRX * 0.1, bodyRY * 0.6, bodyRX * 0.9, bodyRY * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const tailX = -bodyRX * 0.88;
+  ctx.beginPath();
+  ctx.moveTo(tailX, 0);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.55, -bodyRY * 0.35, tailX - bodyRX * 1.05, -bodyRY * 0.15);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.55, bodyRY * 0.05, tailX - bodyRX * 0.2, 0);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.55, bodyRY * 0.05, tailX - bodyRX * 1.05, bodyRY * 0.15);
+  ctx.quadraticCurveTo(tailX - bodyRX * 0.55, bodyRY * 0.35, tailX, 0);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-bodyRX * 0.35, -bodyRY * 0.75);
+  ctx.lineTo(-bodyRX * 0.22, -bodyRY * 1.25);
+  ctx.lineTo(-bodyRX * 0.05, -bodyRY * 0.7);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(bodyRX * 0.15, bodyRY * 0.75, bodyRX * 0.32, bodyRY * 0.42, 0.5, 0, Math.PI * 2);
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(bodyRX * 0.55, -bodyRY * 0.85, bodyRX * 0.05, bodyRY * 0.12, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.68, -bodyRY * 0.1, Math.max(1.3, bodyRX * 0.07), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
+// Mondfisch-Silhouette: scheibenförmiger Körper, riesige gespiegelte
+// Rücken-/Afterflosse, Stummelschwanz (Clavus) statt echter Schwanzflosse.
+function drawDiscShape(scale, color, colorDark) {
+  const r = canvas.width * 0.024 * scale;
+
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 1.1, r * 1.35, 0, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.15, -r * 1.2);
+  ctx.lineTo(r * 0.05, -r * 2.6);
+  ctx.lineTo(r * 0.35, -r * 1.1);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.15, r * 1.2);
+  ctx.lineTo(r * 0.05, r * 2.6);
+  ctx.lineTo(r * 0.35, r * 1.1);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-r * 1.05, -r * 0.5);
+  ctx.quadraticCurveTo(-r * 1.35, 0, -r * 1.05, r * 0.5);
+  ctx.quadraticCurveTo(-r * 1.15, 0, -r * 1.05, -r * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(r * 0.95, 0, Math.max(1, r * 0.08), 0, Math.PI * 2);
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(r * 0.55, -r * 0.25, Math.max(1.4, r * 0.13), 0, Math.PI * 2);
+  ctx.fillStyle = "#f4f6f8";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(r * 0.57, -r * 0.25, Math.max(0.8, r * 0.07), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
+// Kopffüßer-Silhouette: Mantel + große Augen + mehrere geschwungene
+// Tentakel. Mit menacing=true (Kraken) größer, mehr Tentakel, Saugnäpfe,
+// gezackter Mantel und rot glühende Augen statt normaler Tintenfisch-Optik.
+function drawCephalopodShape(scale, color, colorDark, menacing) {
+  const r = canvas.width * (menacing ? 0.026 : 0.02) * scale;
+  const tentacleCount = menacing ? 7 : 5;
+
+  for (let i = 0; i < tentacleCount; i++) {
+    const t = i / (tentacleCount - 1);
+    const startAngle = -0.9 + t * 1.8;
+    const startX = Math.sin(startAngle) * r * 0.6;
+    const startY = r * 0.7;
+    const length = r * (menacing ? 3.2 : 2.4) * (0.8 + 0.4 * Math.sin(i * 1.7));
+    const curl = (i % 2 === 0 ? 1 : -1) * r * 0.6;
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.quadraticCurveTo(startX + curl, startY + length * 0.55, startX + curl * 0.3, startY + length);
+    ctx.lineWidth = Math.max(1.5, r * (menacing ? 0.22 : 0.16) * (1 - t * 0.3));
+    ctx.strokeStyle = colorDark;
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    if (menacing) {
+      for (let s = 0.35; s < 1; s += 0.22) {
+        const sx = startX + curl * 0.3 * s;
+        const sy = startY + length * s;
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.max(1, r * 0.05), 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fill();
+      }
+    }
+  }
+
+  const backReach = menacing ? 1.3 : 0.85;
+  ctx.beginPath();
+  ctx.moveTo(r * 0.2, -r * 1.1);
+  ctx.quadraticCurveTo(r * 1.15, -r * 0.9, r * 1.05, 0);
+  ctx.quadraticCurveTo(r * 1.15, r * 0.9, r * 0.2, r * 1.1);
+  ctx.quadraticCurveTo(-r * (backReach * 0.75), r * 0.6, -r * backReach, 0);
+  ctx.quadraticCurveTo(-r * (backReach * 0.75), -r * 0.6, r * 0.2, -r * 1.1);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  if (menacing) {
+    for (let i = 0; i < 5; i++) {
+      const a = -0.9 + (i / 4) * 1.8;
+      const bx = Math.cos(a) * r * 1.0;
+      const by = Math.sin(a) * r * 0.85 - r * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(bx * 0.7, by * 0.7 - r * 0.2);
+      ctx.lineTo(bx, by - r * 0.55);
+      ctx.lineTo(bx * 0.75 + r * 0.15, by * 0.7);
+      ctx.closePath();
+      ctx.fillStyle = colorDark;
+      ctx.fill();
+    }
+  }
+
+  const eyeColor = menacing ? "#ff5a5a" : "#f4f6f8";
+  ctx.beginPath();
+  ctx.arc(r * 0.35, -r * 0.15, Math.max(1.6, r * 0.28), 0, Math.PI * 2);
+  ctx.fillStyle = eyeColor;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(r * 0.4, -r * 0.15, Math.max(1, r * 0.14), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
 function drawCreature(species, scale, color, colorDark) {
-  if (species.shape === "serpent") {
-    drawSeaDragon(scale, color, colorDark);
-  } else {
-    drawFishShape(scale, color, colorDark);
+  switch (species.shape) {
+    case "serpent": drawSeaDragon(scale, color, colorDark); break;
+    case "shark": drawSharkShape(scale, color, colorDark); break;
+    case "tuna": drawTunaShape(scale, color, colorDark); break;
+    case "billfish": drawBillfishShape(scale, color, colorDark); break;
+    case "whale": drawWhaleShape(scale, color, colorDark); break;
+    case "disc": drawDiscShape(scale, color, colorDark); break;
+    case "cephalopod": drawCephalopodShape(scale, color, colorDark, false); break;
+    case "kraken": drawCephalopodShape(scale, color, colorDark, true); break;
+    default: drawFishShape(scale, color, colorDark);
   }
 }
 
@@ -1131,9 +1569,11 @@ function drawAngler(now, fallProgress, holdInfo) {
   if (holdInfo) {
     const fishY = bodyTopY - headR * 2.6 - canvas.height * 0.02 + bob;
     const visual = fishVisual(holdInfo.species, holdInfo.mutation);
-    // Der Seedrache darf richtig groß bleiben; normale Fische werden
-    // gedeckelt, damit sie über dem Kopf nicht den ganzen Bildschirm füllen.
-    const heldScale = holdInfo.species.shape === "serpent" ? visual.scale : Math.min(visual.scale, 2.2);
+    // Seedrache und Kraken dürfen richtig groß bleiben; alle anderen
+    // werden gedeckelt, damit sie über dem Kopf nicht den ganzen
+    // Bildschirm füllen.
+    const uncapped = holdInfo.species.shape === "serpent" || holdInfo.species.shape === "kraken";
+    const heldScale = uncapped ? visual.scale : Math.min(visual.scale, 2.2);
     ctx.save();
     ctx.translate(bodyX, fishY);
     drawCreature(holdInfo.species, heldScale, visual.color, visual.colorDark);
