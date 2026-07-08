@@ -1,0 +1,494 @@
+:root {
+  --bg: #12141a;
+  --panel: #1c202a;
+  --panel-alt: #232838;
+  --text: #f4f6f8;
+  --text-dim: #a9b2bc;
+  --accent: #3fe0d4;
+  --accent-2: #7a5aff;
+  --danger: #e05a5a;
+  --success: #4bd07a;
+
+  --c-common: #9aa0a6;
+  --c-uncommon: #4fae8a;
+  --c-rare: #3f8fd4;
+  --c-epic: #a04fd4;
+  --c-legendary: #f2c94c;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  min-height: 100vh;
+}
+
+.screen {
+  position: relative;
+  min-height: 100vh;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+}
+
+.screen.active {
+  display: flex;
+}
+
+/* ---------- Intro ---------- */
+
+#screen-intro {
+  justify-content: center;
+  padding: 32px 24px;
+  gap: 16px;
+  background: radial-gradient(circle at 50% 0%, #232c3e 0%, var(--bg) 70%);
+  text-align: center;
+}
+
+#screen-intro h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 46px);
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.primary-btn, .secondary-btn {
+  font-size: 17px;
+  padding: 12px 26px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: #0e1116;
+}
+
+.primary-btn:disabled {
+  background: #454b56;
+  color: #8b929a;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  background: transparent;
+  color: var(--text-dim);
+  border: 2px solid #454b56;
+}
+
+.danger-btn {
+  background: var(--danger);
+  color: #1b1f24;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.text-btn:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.danger-text {
+  color: var(--danger);
+}
+
+.how-to {
+  max-width: 620px;
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 18px 24px;
+  text-align: left;
+  margin-top: 8px;
+}
+
+.how-to h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.how-to ul {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.65;
+}
+
+/* ---------- Hub ---------- */
+
+#screen-hub {
+  align-items: stretch;
+  padding: 18px 24px 40px;
+  gap: 16px;
+}
+
+#hub-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+#hub-credits, #hub-dex {
+  background: var(--panel);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+#hub-dex {
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+#hub-header .text-btn {
+  margin-left: auto;
+}
+
+#hub-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#hub-body {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.hub-column {
+  flex: 1;
+  min-width: 280px;
+}
+
+.hub-column h2 {
+  font-size: 15px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 10px;
+}
+
+/* ---------- Cards ---------- */
+
+.card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.card-grid-small .game-card {
+  width: 130px;
+}
+
+.game-card {
+  width: 150px;
+  background: var(--panel-alt);
+  border-radius: 12px;
+  padding: 10px;
+  border: 2px solid var(--c-common);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  cursor: default;
+}
+
+.game-card.selectable {
+  cursor: pointer;
+  transition: transform .12s;
+}
+
+.game-card.selectable:hover {
+  transform: translateY(-3px);
+}
+
+.game-card.selected {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.game-card.rarity-common { border-color: var(--c-common); }
+.game-card.rarity-uncommon { border-color: var(--c-uncommon); }
+.game-card.rarity-rare { border-color: var(--c-rare); box-shadow: 0 0 10px rgba(63,143,212,0.25); }
+.game-card.rarity-epic { border-color: var(--c-epic); box-shadow: 0 0 14px rgba(160,79,212,0.3); }
+.game-card.rarity-legendary { border-color: var(--c-legendary); box-shadow: 0 0 18px rgba(242,201,76,0.45); }
+
+.game-card canvas.car-icon {
+  width: 100%;
+  height: 70px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 8px;
+}
+
+.card-name {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.card-rarity-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+.rarity-common .card-rarity-tag { color: var(--c-common); }
+.rarity-uncommon .card-rarity-tag { color: var(--c-uncommon); }
+.rarity-rare .card-rarity-tag { color: var(--c-rare); }
+.rarity-epic .card-rarity-tag { color: var(--c-epic); }
+.rarity-legendary .card-rarity-tag { color: var(--c-legendary); }
+
+.stat-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.stat-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+.stat-bar-label {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.stat-bar-track {
+  flex: 1;
+  height: 5px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.card-count-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.6);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.card-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.card-undiscovered {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.empty-hint {
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+/* ---------- Modals ---------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6,7,10,0.75);
+}
+
+.modal-panel {
+  position: relative;
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 20px 24px 24px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  min-width: 320px;
+}
+
+.modal-panel-wide {
+  max-width: 96vw;
+  width: 820px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.modal-close {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: var(--text);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+/* ---------- Pack opening ---------- */
+
+#pack-intro {
+  text-align: center;
+  padding: 10px 0;
+}
+
+#pack-art {
+  font-size: 64px;
+  margin-bottom: 10px;
+  animation: pack-bob 1.8s ease-in-out infinite;
+}
+
+@keyframes pack-bob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+}
+
+.hidden { display: none !important; }
+
+#pack-cards .game-card {
+  opacity: 0;
+  transform: translateY(14px) scale(0.9);
+  animation: card-pop .4s ease forwards;
+}
+
+@keyframes card-pop {
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- Challenge / race ---------- */
+
+.offer-warning {
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+#race-canvas {
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  aspect-ratio: 900 / 220;
+  background: #0e1116;
+  border-radius: 10px;
+  display: block;
+}
+
+#result-title {
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+#result-title.win { color: var(--success); }
+#result-title.lose { color: var(--danger); }
+
+#result-details {
+  text-align: center;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+/* ---------- Collection ---------- */
+
+.collection-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tab-btn {
+  background: var(--panel-alt);
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab-btn.tab-active {
+  background: var(--accent);
+  color: #0e1116;
+}
+
+@media (max-width: 640px) {
+  .game-card { width: 128px; }
+  .card-grid-small .game-card { width: 112px; }
+}

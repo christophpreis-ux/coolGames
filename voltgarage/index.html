@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voltgarage</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="screen-intro" class="screen active">
+    <h1>⚡ Voltgarage</h1>
+    <p class="subtitle">Sammle Elektro-Rennwagen, öffne Booster und tritt gegen andere an</p>
+
+    <button id="btn-start" class="primary-btn">Los geht's</button>
+
+    <div class="how-to">
+      <h2>So funktioniert's</h2>
+      <ul>
+        <li>Du startest mit einem einzigen, ziemlich schlechten Auto: der <b>Rostlaube</b>.</li>
+        <li>Mit Credits kaufst du <b>Booster</b> (wie Sammelkarten) – darin stecken zufällige Autos und Fähigkeitskarten. 50 verschiedene Autos und 50 verschiedene Fähigkeiten gibt es insgesamt.</li>
+        <li>Gegner bieten dir immer wieder Rennen an. Du siehst ihr Auto vorher und kannst das Angebot <b>annehmen oder ablehnen</b>.</li>
+        <li>Nimmst du an, wählst du eins deiner Autos zum Fahren (und optional bis zu 2 Fähigkeitskarten, die sich dabei verbrauchen).</li>
+        <li><b>Gewinnst</b> du: Credits, manchmal sogar das gegnerische Auto obendrauf. <b>Verlierst</b> du: Dein eingesetztes Auto geht an den Gegner – außer eine Fähigkeit schützt dich.</li>
+        <li>Deshalb lohnt es sich, riskante Angebote manchmal einfach abzulehnen.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="screen-hub" class="screen">
+    <div id="hub-header">
+      <div id="hub-credits">⚡ 0 Credits</div>
+      <div id="hub-dex">🗂️ 0/50 Autos · 0/50 Fähigkeiten</div>
+      <button id="btn-collection" class="text-btn">Sammlung</button>
+      <button id="btn-reset" class="text-btn danger-text">Neu starten</button>
+    </div>
+
+    <div id="hub-actions">
+      <button id="btn-open-pack" class="primary-btn">📦 Booster öffnen (150 ⚡)</button>
+      <button id="btn-get-offer" class="primary-btn">🏁 Rennangebot einholen</button>
+    </div>
+
+    <div id="hub-body">
+      <div class="hub-column">
+        <h2>Deine Garage</h2>
+        <div id="garage-grid" class="card-grid"></div>
+      </div>
+      <div class="hub-column">
+        <h2>Fähigkeitskarten</h2>
+        <div id="ability-inventory" class="card-grid card-grid-small"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Booster-Öffnen -->
+  <div id="pack-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2>Booster</h2>
+        <button id="btn-pack-close" class="modal-close" aria-label="Schließen">✕</button>
+      </div>
+      <div id="pack-intro">
+        <div id="pack-art">📦</div>
+        <p>Ein Booster enthält 5 zufällige Karten – Autos und Fähigkeiten gemischt.</p>
+        <button id="btn-pack-reveal" class="primary-btn">Öffnen!</button>
+      </div>
+      <div id="pack-reveal" class="hidden">
+        <div id="pack-cards" class="card-grid"></div>
+        <button id="btn-pack-done" class="primary-btn hidden">Weiter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rennangebot / Rennen -->
+  <div id="challenge-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="challenge-heading">Rennangebot</h2>
+        <button id="btn-challenge-close" class="modal-close" aria-label="Schließen">✕</button>
+      </div>
+
+      <div id="phase-offer">
+        <p>Ein Herausforderer will gegen dich antreten:</p>
+        <div id="offer-opponent-card" class="card-grid"></div>
+        <p class="offer-warning">Verlierst du, geht dein eingesetztes Auto an den Gegner!</p>
+        <div class="result-actions">
+          <button id="btn-offer-reject" class="secondary-btn">Ablehnen</button>
+          <button id="btn-offer-accept" class="primary-btn">Annehmen</button>
+        </div>
+      </div>
+
+      <div id="phase-pick-car" class="hidden">
+        <p>Mit welchem Auto trittst du an?</p>
+        <div id="pick-car-grid" class="card-grid"></div>
+      </div>
+
+      <div id="phase-pick-ability" class="hidden">
+        <p>Bis zu 2 Fähigkeitskarten einsetzen (optional):</p>
+        <div id="pick-ability-grid" class="card-grid card-grid-small"></div>
+        <button id="btn-ability-done" class="primary-btn">Rennen starten</button>
+      </div>
+
+      <div id="phase-race" class="hidden">
+        <canvas id="race-canvas" width="900" height="220"></canvas>
+      </div>
+
+      <div id="phase-result" class="hidden">
+        <div id="result-title"></div>
+        <div id="result-details"></div>
+        <button id="btn-result-close" class="primary-btn">Weiter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sammlung -->
+  <div id="collection-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel modal-panel-wide">
+      <div class="modal-header">
+        <h2>Sammlung</h2>
+        <button id="btn-collection-close" class="modal-close" aria-label="Schließen">✕</button>
+      </div>
+      <div class="collection-tabs">
+        <button id="tab-cars" class="tab-btn tab-active">Autos</button>
+        <button id="tab-abilities" class="tab-btn">Fähigkeiten</button>
+      </div>
+      <div id="collection-cars" class="card-grid"></div>
+      <div id="collection-abilities" class="card-grid hidden"></div>
+    </div>
+  </div>
+
+  <!-- Reset-Bestätigung -->
+  <div id="reset-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2>Neu starten?</h2>
+        <button id="btn-reset-close" class="modal-close" aria-label="Schließen">✕</button>
+      </div>
+      <p>Du verlierst alle Autos, Fähigkeitskarten und Credits und beginnst wieder mit der Rostlaube. Deine Sammlungs-Fortschritte (entdeckte Karten) bleiben erhalten.</p>
+      <div class="result-actions">
+        <button id="btn-reset-cancel" class="secondary-btn">Abbrechen</button>
+        <button id="btn-reset-confirm" class="primary-btn danger-btn">Ja, neu starten</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>
