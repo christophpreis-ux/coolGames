@@ -96,14 +96,17 @@ Gekaufte Ruten bleiben für die restliche Sitzung erhalten und lassen sich im La
 
 ## Köder
 
-Jeder Wurf kostet 1 Köder aus dem Köcher. Bessere Köder machen die Fische **nicht leichter zu fangen** (das macht die Rute) – sie verschieben nur die Zufallsauswahl stark zugunsten seltener, wertvoller Arten. Köder werden in Tüten zu je 20 Stück gekauft und stapeln sich im Köcher:
+Jeder Wurf kostet 1 Köder aus dem Köcher. Bessere Köder machen die Fische **nicht leichter zu fangen** (das macht die Rute) – sie verschieben nur die Zufallsauswahl stark zugunsten seltener, wertvoller Arten. Köder werden in Tüten gekauft und stapeln sich im Köcher – die vier normalen Köder in 20er-Tüten, der Ultraköder nur im Zweierpack:
 
-| Köder | Preis (20 Stück) | Effekt |
+| Köder | Preis | Effekt |
 |---|---|---|
-| Standardköder | 60 Punkte | normale Fangchancen |
-| Premiumköder | 120 Punkte | deutlich höhere Chance auf größere Fische |
-| Profiköder | 500 Punkte | starker Zug zu seltenen Fängen |
-| Meisterköder | 1000 Punkte | maximale Chance auf die seltensten Fänge |
+| Standardköder | 60 Punkte (20 Stück) | normale Fangchancen |
+| Premiumköder | 120 Punkte (20 Stück) | deutlich höhere Chance auf größere Fische |
+| Profiköder | 500 Punkte (20 Stück) | starker Zug zu seltenen Fängen |
+| Meisterköder | 1.000 Punkte (20 Stück) | maximale Chance auf die seltensten Fänge |
+| **Ultraköder** | 5.000 Punkte (**2 Stück**) | kein Zufall mehr – fängt garantiert den bestmöglichen Fisch, den die aktuell ausgerüstete Angel überhaupt fangen kann |
+
+Der Ultraköder schaltet keine neuen Arten frei – er garantiert nur, dass unter allen mit der aktuellen Rute erreichbaren Arten die mit den meisten Punkten anbeißt (z. B. Megalodon mit einer normalen Rute, der Kraken mit der Kraken-Angel).
 
 Ist der Köcher leer, kannst du nicht mehr werfen. Reicht das Guthaben noch für eine Tüte, schickt dich das Spiel in den Laden. Reicht es auch dafür nicht mehr, bleibt nur der Neustart – der setzt Punkte, Ruten **und** Köder auf den Anfangszustand zurück (eine Starter-Tüte Standardköder).
 

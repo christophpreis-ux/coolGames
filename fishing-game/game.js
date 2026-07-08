@@ -185,27 +185,32 @@ const ROD_VISUALS = {
 // Köder: brauchst du für jeden Wurf (1 Stück pro Wurf, egal ob Fang oder
 // Fehlschlag). Bessere Köder machen die Fische nicht leichter zu fangen,
 // sondern verschieben die Zufallsauswahl stark zugunsten seltener/besserer
-// Arten (siehe pickFishSpecies: boost^Tier-Anteil). Werden in 20er-Tüten
-// gekauft und können sich anhäufen.
+// Arten (siehe pickFishSpecies: boost^Tier-Anteil). Werden in Tüten
+// gekauft und können sich anhäufen; die Tütengröße (bagSize) ist pro
+// Köder unterschiedlich – der Ultraköder kommt nur im Zweierpack.
 const BAIT_BAG_SIZE = 20;
 const STARTER_BAIT_COUNT = 20;
 
 const BAITS = {
   standard: {
-    name: "Standardköder", price: 60, boost: 1,
+    name: "Standardköder", price: 60, boost: 1, bagSize: BAIT_BAG_SIZE,
     desc: "Der Klassiker. Ganz normale Fangchancen für alle Arten.",
   },
   premium: {
-    name: "Premiumköder", price: 120, boost: 3,
+    name: "Premiumköder", price: 120, boost: 3, bagSize: BAIT_BAG_SIZE,
     desc: "Deutlich höhere Chance auf größere, seltenere Fische.",
   },
   profi: {
-    name: "Profiköder", price: 500, boost: 8,
+    name: "Profiköder", price: 500, boost: 8, bagSize: BAIT_BAG_SIZE,
     desc: "Starker Zug zu seltenen, wertvollen Fängen.",
   },
   meister: {
-    name: "Meisterköder", price: 1000, boost: 20,
+    name: "Meisterköder", price: 1000, boost: 20, bagSize: BAIT_BAG_SIZE,
     desc: "Maximale Chance auf die seltensten Fänge im ganzen Spiel.",
+  },
+  ultra: {
+    name: "Ultraköder", price: 5000, boost: 1, bagSize: 2, guaranteed: true,
+    desc: "Kein Zufall mehr: Angelt garantiert den bestmöglichen Fisch, den deine aktuelle Angel überhaupt fangen kann. Nur im Zweierpack erhältlich.",
   },
 };
 
@@ -214,6 +219,7 @@ const BAIT_VISUALS = {
   premium: "#4a90c2",
   profi: "#8a4ac2",
   meister: "#e8b93f",
+  ultra: "#ff3b6b",
 };
 
 function randomInt(min, max) {
@@ -227,6 +233,13 @@ function randomInt(min, max) {
 function pickFishSpecies() {
   const pool = FISH_SPECIES.filter((f) => !f.requiresRod || f.requiresRod === equippedRod);
   const bait = BAITS[equippedBait];
+
+  // Ultraköder: kein Zufall, sondern immer der punktbeste Fisch, den die
+  // aktuell ausgerüstete Angel überhaupt fangen kann.
+  if (bait.guaranteed) {
+    return pool.reduce((best, f) => (!best || f.points > best.points ? f : best), pool[0]);
+  }
+
   const maxIndex = pool.length - 1;
 
   const weights = pool.map((f, i) => {
@@ -316,7 +329,7 @@ let equippedRod = "standard";
 // Startet mit einer kostenlosen Tüte Standardköder. Bleibt (wie die
 // Ruten) über "Nochmal von vorne" hinweg erhalten – nur ein harter Reset
 // (siehe hardReset) setzt sie zurück auf den Startbestand.
-let baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0 };
+let baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0, ultra: 0 };
 let equippedBait = "standard";
 
 let bobPhase = 0;
@@ -552,7 +565,7 @@ function hardReset() {
   catches = [];
   ownedRods = new Set(["standard"]);
   equippedRod = "standard";
-  baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0 };
+  baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0, ultra: 0 };
   equippedBait = "standard";
   noBaitPanel.classList.add("hidden");
   updateHud();
@@ -806,6 +819,23 @@ function drawBaitIcon(canvasEl, baitId) {
   c.beginPath();
   c.ellipse(w * 0.4, h * 0.5, w * 0.06, h * 0.14, 0, 0, Math.PI * 2);
   c.fill();
+
+  // Stern-Symbol für den Ultraköder: garantiert statt Zufall
+  if (baitId === "ultra") {
+    const cx = w * 0.5, cy = h * 0.54, r = w * 0.15;
+    c.fillStyle = "#fff4c8";
+    c.beginPath();
+    c.moveTo(cx, cy - r);
+    c.lineTo(cx + r * 0.28, cy - r * 0.28);
+    c.lineTo(cx + r, cy);
+    c.lineTo(cx + r * 0.28, cy + r * 0.28);
+    c.lineTo(cx, cy + r);
+    c.lineTo(cx - r * 0.28, cy + r * 0.28);
+    c.lineTo(cx - r, cy);
+    c.lineTo(cx - r * 0.28, cy - r * 0.28);
+    c.closePath();
+    c.fill();
+  }
 }
 
 function renderBaitShop() {
@@ -815,14 +845,14 @@ function renderBaitShop() {
     const canAfford = score >= bait.price;
 
     return `
-      <div class="rod-card ${equipped ? "rod-card-active" : ""}">
+      <div class="rod-card ${equipped ? "rod-card-active" : ""} ${bait.guaranteed ? "rod-card-legendary" : ""}">
         <canvas class="rod-icon" data-bait-icon="${id}" width="70" height="70"></canvas>
         <div class="rod-body">
           <div class="rod-name">${bait.name}</div>
           <div class="rod-desc">${bait.desc}</div>
           <div class="bait-stock">Vorrat: ${stock}${equipped ? " · ausgerüstet" : ""}</div>
           <div class="bait-actions">
-            <button class="rod-btn" data-buy-bait="${id}" ${canAfford ? "" : "disabled"}>Tüte kaufen (+${BAIT_BAG_SIZE}) – ${bait.price} P</button>
+            <button class="rod-btn" data-buy-bait="${id}" ${canAfford ? "" : "disabled"}>${bait.bagSize === 1 ? "Köder" : `${bait.bagSize}er-Pack`} kaufen (+${bait.bagSize}) – ${bait.price} P</button>
             ${!equipped && stock > 0 ? `<button class="rod-btn bait-equip-btn" data-equip-bait="${id}">Ausrüsten</button>` : ""}
           </div>
         </div>
@@ -849,7 +879,7 @@ function buyBait(id) {
   const bait = BAITS[id];
   if (score < bait.price) return;
   score -= bait.price;
-  baitInventory[id] = (baitInventory[id] || 0) + BAIT_BAG_SIZE;
+  baitInventory[id] = (baitInventory[id] || 0) + bait.bagSize;
   equippedBait = id;
   updateHud();
   renderShop();
