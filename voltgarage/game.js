@@ -501,8 +501,6 @@ function drawCarCommon(ctx, w, h, car) {
   const isGT = /\bGT\b/.test(car.name);
   const isE = /-E$/.test(car.name);
 
-  drawGroundShadow(ctx, w, h, gy, 0.4);
-
   ctx.beginPath();
   ctx.moveTo(w * 0.12, gy);
   ctx.lineTo(w * 0.12, h * 0.5);
@@ -542,8 +540,6 @@ function drawCarUncommon(ctx, w, h, car) {
   const isGT = /\bGT\b/.test(car.name);
   const isE = /-E$/.test(car.name);
 
-  drawGroundShadow(ctx, w, h, gy, 0.42);
-
   ctx.beginPath();
   ctx.moveTo(w * 0.1, gy);
   ctx.lineTo(w * 0.1, h * 0.55);
@@ -577,8 +573,6 @@ function drawCarRare(ctx, w, h, car) {
   const variant = hashStr(car.id);
   const isGT = /\bGT\b/.test(car.name);
   const isE = /-E$/.test(car.name);
-
-  drawGroundShadow(ctx, w, h, gy, 0.44);
 
   ctx.beginPath();
   ctx.moveTo(w * 0.08, gy);
@@ -615,8 +609,6 @@ function drawCarEpic(ctx, w, h, car) {
   const color = car.color, accent = car.accent, gy = h * 0.8;
   const variant = hashStr(car.id);
   const isE = /-E$/.test(car.name);
-
-  drawGroundShadow(ctx, w, h, gy, 0.46);
 
   ctx.beginPath();
   ctx.moveTo(w * 0.06, gy);
@@ -660,7 +652,6 @@ function drawCarLegendary(ctx, w, h, car) {
   const variant = hashStr(car.id);
   const isE = /-E$/.test(car.name);
 
-  drawGroundShadow(ctx, w, h, gy, 0.5);
   ctx.save();
   ctx.fillStyle = accent;
   ctx.globalAlpha = 0.25;
@@ -713,7 +704,7 @@ function drawCarLegendary(ctx, w, h, car) {
   drawWheels(ctx, w, h, [w * 0.22, w * 0.8], w * 0.105, 8, accent, true, variant);
 }
 
-const CAR_DRAW_FN = {
+const CAR_BODY_FN = {
   common: drawCarCommon,
   uncommon: drawCarUncommon,
   rare: drawCarRare,
@@ -721,11 +712,802 @@ const CAR_DRAW_FN = {
   legendary: drawCarLegendary,
 };
 
+// =========================================================================
+// FX-Engine: Jedes einzelne Auto (alle 50 + Rostlaube) hat einen eigenen,
+// permanent laufenden Animationseffekt, passend zu seinem Namen. Effekte
+// bestehen aus bis zu drei Hooks: bg (hinter dem Auto), transform (bewegt
+// die Karosserie selbst, z. B. Wackeln) und fg (Partikel davor). Partikel-
+// bahnen sind deterministisch aus einem Hash der Auto-ID abgeleitet, damit
+// jede Karte ihren Effekt stabil und flackerfrei wiederholt.
+// =========================================================================
+
+function carRand(car, i) {
+  const x = Math.sin(hashStr(car.id) * 0.0001 + i * 127.1) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function fxPuff(ctx, x, y, r, rgb, alpha) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, alpha);
+  ctx.fillStyle = `rgb(${rgb})`;
+  ctx.beginPath();
+  ctx.arc(x, y, Math.max(0.5, r), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function fxExhaust(e, rgb, opts) {
+  const { ctx, w, h, t } = e;
+  const o = Object.assign({ count: 3, speed: 0.35, size: 0.03, x: 0.07, y: 0.62 }, opts);
+  for (let i = 0; i < o.count; i++) {
+    const p = (t * o.speed + i / o.count) % 1;
+    fxPuff(ctx, w * o.x - p * w * 0.12 + Math.sin((t + i * 7) * 2.2) * w * 0.01,
+      h * o.y - p * h * 0.22, w * o.size * (0.5 + p), rgb, (1 - p) * 0.45);
+  }
+}
+
+function fxTwinkle(ctx, x, y, r, color, alpha) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = r * 1.6;
+  ctx.lineWidth = Math.max(1, r * 0.3);
+  ctx.beginPath();
+  ctx.moveTo(x - r, y); ctx.lineTo(x + r, y);
+  ctx.moveTo(x, y - r); ctx.lineTo(x, y + r);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function fxBolt(ctx, x0, y0, x1, y1, color, seed, jag, lw) {
+  const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
+  const px = -dy / len, py = dx / len;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+  ctx.lineWidth = lw || 1.6;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  const n = 6;
+  for (let i = 1; i < n; i++) {
+    const f = i / n;
+    const s = Math.sin(seed * 13.7 + i * 91.7) * 0.9 + Math.sin(seed * 57.1 + i * 37.3) * 0.4;
+    ctx.lineTo(x0 + dx * f + px * s * jag, y0 + dy * f + py * s * jag);
+  }
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function fxRing(ctx, x, y, r, color, alpha, lw) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, alpha);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw || 2;
+  ctx.beginPath();
+  ctx.arc(x, y, Math.max(0.5, r), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function fxGhostBody(e, ox, oy, alpha) {
+  const { ctx, w, h, car } = e;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(ox, oy);
+  CAR_BODY_FN[car.rarity](ctx, w, h, car);
+  ctx.restore();
+}
+
+const CAR_FX = {
+  // ---------------- Starter ----------------
+  rostlaube: { fg(e) { const { ctx, w, h, t } = e; // stotternder Auspuff + Elektrik-Fizzle
+    fxExhaust(e, "130,130,130", { count: 3, speed: 0.3, size: 0.032 });
+    if ((t * 0.6) % 1 < 0.1) fxTwinkle(ctx, w * 0.74, h * 0.4, w * 0.02, "#ffd75a", 0.8);
+  } },
+
+  // ---------------- Gewöhnlich ----------------
+  schrotthaufen: { fg(e) { const { ctx, w, h, t, car } = e; // Rostflocken bröckeln ab
+    for (let i = 0; i < 4; i++) {
+      const p = (t * 0.35 + carRand(car, i)) % 1;
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.8;
+      ctx.fillStyle = "#8a5a30";
+      ctx.fillRect(w * (0.2 + carRand(car, i + 9) * 0.55), h * 0.55 + p * h * 0.28, w * 0.012, w * 0.012);
+      ctx.restore();
+    }
+  } },
+  zitronenflitzer: { fg(e) { const { ctx, w, h, t, car } = e; // saure Funken-Blitzer
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 0.8 + carRand(car, i)) % 1;
+      if (ph < 0.18) fxTwinkle(ctx, w * (0.2 + carRand(car, i + 3) * 0.6), h * (0.3 + carRand(car, i + 6) * 0.3), w * 0.02, "#f4e04a", 1 - ph / 0.18);
+    }
+  } },
+  blechbuechse: { transform(e) { const { ctx, h, t } = e; // scheppert und klappert
+    ctx.translate(0, Math.sin(t * 31) * h * 0.006);
+  }, fg(e) { const { ctx, w, h, t } = e;
+    if ((t * 0.5) % 1 < 0.12) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.7)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.7, h * 0.24); ctx.lineTo(w * 0.74, h * 0.18);
+      ctx.moveTo(w * 0.74, h * 0.26); ctx.lineTo(w * 0.79, h * 0.21);
+      ctx.stroke();
+      ctx.restore();
+    }
+  } },
+  wackeldackel_e: { transform(e) { const { ctx, w, h, t } = e; // wackelt wie sein Namensgeber
+    ctx.translate(w * 0.5, h * 0.78);
+    ctx.rotate(Math.sin(t * 3.2) * 0.045);
+    ctx.translate(-w * 0.5, -h * 0.78);
+  } },
+  sparmobil: { fg(e) { const { ctx, w, h, t, car } = e; // sparsame Öko-Blätter
+    for (let i = 0; i < 2; i++) {
+      const p = (t * 0.22 + i * 0.5) % 1;
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.8;
+      ctx.fillStyle = "#7fd07f";
+      ctx.translate(w * (0.3 + carRand(car, i) * 0.4) + Math.sin(p * 6 + i) * w * 0.03, h * 0.35 - p * h * 0.25);
+      ctx.rotate(p * 4 + i);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, w * 0.014, w * 0.007, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  } },
+  rentnerflitzer: { fg(e) { const { ctx, w, h, t } = e; // der Blinker läuft seit 1987
+    if ((t % 1.2) < 0.6) {
+      ctx.save();
+      ctx.fillStyle = "#ffaa30";
+      ctx.shadowColor = "#ffaa30";
+      ctx.shadowBlur = w * 0.03;
+      ctx.beginPath();
+      ctx.arc(w * 0.13, h * 0.52, w * 0.016, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  } },
+  uraltstromer: { fg(e) { // die Haube dampft
+    fxExhaust(e, "200,200,200", { count: 4, speed: 0.2, size: 0.04, x: 0.72, y: 0.36 });
+  } },
+  waermflasche_e: { fg(e) { const { ctx, w, h, t } = e; // Hitzeflimmern überm Dach
+    ctx.save();
+    ctx.strokeStyle = "#ff7a5a";
+    ctx.lineWidth = 1.3;
+    for (let i = 0; i < 3; i++) {
+      const p = (t * 0.35 + i / 3) % 1;
+      const bx = w * (0.34 + i * 0.13), by = h * 0.3 - p * h * 0.2;
+      ctx.globalAlpha = (1 - p) * 0.5;
+      ctx.beginPath();
+      for (let s = 0; s <= 6; s++) {
+        const xx = bx + Math.sin(s / 2 + t * 5 + i * 2) * w * 0.014, yy = by - s * h * 0.018;
+        s === 0 ? ctx.moveTo(xx, yy) : ctx.lineTo(xx, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  } },
+  milchkaennchen: { fg(e) { const { ctx, w, h, t, car } = e; // aufsteigende Milchbläschen
+    for (let i = 0; i < 4; i++) {
+      const p = (t * 0.3 + carRand(car, i)) % 1;
+      fxPuff(ctx, w * (0.25 + carRand(car, i + 4) * 0.5), h * 0.4 - p * h * 0.22, w * 0.01 + p * w * 0.008, "245,242,230", (1 - p) * 0.8);
+    }
+  } },
+  gartenzwerg_gt: { fg(e) { const { ctx, w, h, t, car } = e; // Laub wirbelt hinterher
+    for (let i = 0; i < 3; i++) {
+      const p = (t * 0.4 + i / 3) % 1;
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.85;
+      ctx.fillStyle = i % 2 ? "#6fae4f" : "#4f8f3f";
+      ctx.translate(w * 0.16 - p * w * 0.12, h * (0.45 + carRand(car, i) * 0.2) + Math.sin(p * 9 + i) * h * 0.05);
+      ctx.rotate(t * 4 + i * 2);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, w * 0.013, w * 0.006, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  } },
+
+  // ---------------- Ungewöhnlich ----------------
+  stadtblitz: { fg(e) { const { ctx, w, h, t } = e; // Funk-Antenne mit Zap
+    ctx.save();
+    ctx.strokeStyle = "rgba(127,212,255,0.8)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.47, h * 0.3); ctx.lineTo(w * 0.47, h * 0.16);
+    ctx.stroke();
+    ctx.restore();
+    const ph = (t * 0.7) % 1;
+    if (ph < 0.25) {
+      fxBolt(ctx, w * 0.47, h * 0.14, w * 0.53, h * 0.28, "#7fd4ff", Math.floor(t * 6), w * 0.015, 1.4);
+      fxTwinkle(ctx, w * 0.47, h * 0.13, w * 0.016, "#bfe9ff", 1 - ph * 4);
+    }
+  } },
+  pendlerpfeil: { fg(e) { const { ctx, w, h, t, car } = e; // Pfeil-Chevrons ziehen hinterher
+    for (let i = 0; i < 3; i++) {
+      const p = (t * 0.9 + i / 3) % 1;
+      const x = w * 0.16 - p * w * 0.14, y = h * 0.55;
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.9;
+      ctx.strokeStyle = car.accent;
+      ctx.lineWidth = Math.max(1.5, w * 0.012);
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.03, y - h * 0.07); ctx.lineTo(x, y); ctx.lineTo(x + w * 0.03, y + h * 0.07);
+      ctx.stroke();
+      ctx.restore();
+    }
+  } },
+  kompaktvolt: { fg(e) { const { ctx, w, h, t } = e; // Ladebalken an der Tür füllt sich
+    const seg = 4, fill = Math.floor(((t * 0.8) % 1) * (seg + 1));
+    for (let i = 0; i < seg; i++) {
+      ctx.save();
+      ctx.globalAlpha = i < fill ? 0.95 : 0.25;
+      ctx.fillStyle = i < fill ? "#5aff9a" : "#2a4a3a";
+      if (i < fill) { ctx.shadowColor = "#5aff9a"; ctx.shadowBlur = 3; }
+      ctx.fillRect(w * (0.36 + i * 0.05), h * 0.56, w * 0.035, h * 0.05);
+      ctx.restore();
+    }
+  } },
+  silberstreif: { fg(e) { const { ctx, w, h, t } = e; // Silberglanz wandert übers Blech
+    const p = (t * 0.45) % 1, x = w * (0.05 + p * 0.9);
+    ctx.save();
+    ctx.globalAlpha = 0.5 * Math.sin(Math.PI * p);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = w * 0.02;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.05, h * 0.72); ctx.lineTo(x + w * 0.05, h * 0.3);
+    ctx.stroke();
+    ctx.restore();
+  } },
+  alltagsrakete: { fg(e) { const { ctx, w, h, t } = e; // Raketenflamme am Heck
+    const f = 0.7 + Math.sin(t * 22) * 0.3;
+    ctx.save();
+    ctx.translate(w * 0.09, h * 0.6);
+    ctx.fillStyle = "#ff8a3c";
+    ctx.beginPath(); ctx.moveTo(0, -h * 0.05); ctx.lineTo(-w * 0.07 * f, 0); ctx.lineTo(0, h * 0.05); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffd75a";
+    ctx.beginPath(); ctx.moveTo(0, -h * 0.025); ctx.lineTo(-w * 0.04 * f, 0); ctx.lineTo(0, h * 0.025); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    fxExhaust(e, "160,160,160", { count: 2, speed: 0.5, size: 0.02, x: 0.04, y: 0.6 });
+  } },
+  blauer_blitz: { fg(e) { const { ctx, w, h, t } = e; // Blitz schlägt neben dem Dach ein
+    const ph = (t * 0.9) % 1;
+    if (ph < 0.2) {
+      fxBolt(ctx, w * 0.5, h * 0.05, w * 0.55, h * 0.26, "#4fa0ff", Math.floor(t * 5), w * 0.02, 2);
+      fxTwinkle(ctx, w * 0.55, h * 0.27, w * 0.02, "#9fd0ff", 1 - ph * 5);
+    }
+  } },
+  stromlinie_s1: { fg(e) { const { ctx, w, h, t } = e; // Luftströmungslinien gleiten übers Dach
+    ctx.save();
+    ctx.strokeStyle = "rgba(90,212,192,0.7)";
+    ctx.lineWidth = 1.3;
+    for (let i = 0; i < 3; i++) {
+      const p = (t * 0.7 + i / 3) % 1, x = w * (0.15 + p * 0.7);
+      ctx.globalAlpha = Math.sin(Math.PI * p) * 0.7;
+      ctx.beginPath();
+      ctx.moveTo(x - w * 0.08, h * (0.24 + i * 0.05));
+      ctx.quadraticCurveTo(x, h * (0.2 + i * 0.05), x + w * 0.08, h * (0.24 + i * 0.05));
+      ctx.stroke();
+    }
+    ctx.restore();
+  } },
+  nachbarschaftsrakete: { fg(e) { const { ctx, w, h, t, car } = e; // Konfetti-Party
+    const cols = ["#ff6a6a", "#ffd75a", "#6ad0ff", "#7fff9a", "#d08aff"];
+    for (let i = 0; i < 5; i++) {
+      const p = (t * 0.5 + carRand(car, i)) % 1;
+      ctx.save();
+      ctx.globalAlpha = 1 - p;
+      ctx.fillStyle = cols[i];
+      ctx.translate(w * 0.16 - p * w * 0.13, h * (0.3 + carRand(car, i + 5) * 0.35) + Math.sin(p * 8 + i) * h * 0.04);
+      ctx.rotate(t * 6 + i);
+      ctx.fillRect(-w * 0.008, -w * 0.008, w * 0.016, w * 0.016);
+      ctx.restore();
+    }
+  } },
+  bueroschtuhl_gt: { fg(e) { const { ctx, w, h, t, car } = e; // Akten fliegen davon
+    for (let i = 0; i < 3; i++) {
+      const p = (t * 0.4 + i / 3) % 1;
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.9;
+      ctx.fillStyle = "#f0f0e8";
+      ctx.translate(w * 0.15 - p * w * 0.12, h * (0.35 + carRand(car, i) * 0.2) - Math.sin(p * 5 + i) * h * 0.06);
+      ctx.rotate(Math.sin(t * 3 + i) * 0.8);
+      ctx.fillRect(-w * 0.014, -w * 0.01, w * 0.028, w * 0.02);
+      ctx.strokeStyle = "#999";
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.008, -w * 0.003); ctx.lineTo(w * 0.008, -w * 0.003);
+      ctx.moveTo(-w * 0.008, w * 0.003); ctx.lineTo(w * 0.008, w * 0.003);
+      ctx.stroke();
+      ctx.restore();
+    }
+  } },
+  vorstadtpanther: { fg(e) { const { ctx, w, h, t } = e; // lauernde Panther-Augen, blinzeln ab und zu
+    const blink = (t * 0.4) % 1 < 0.85 ? 1 : 0.1;
+    ctx.save();
+    ctx.globalAlpha = blink;
+    ctx.fillStyle = "#5aff7a";
+    ctx.shadowColor = "#5aff7a";
+    ctx.shadowBlur = w * 0.02;
+    ctx.beginPath(); ctx.ellipse(w * 0.42, h * 0.41, w * 0.012, h * 0.012, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(w * 0.52, h * 0.41, w * 0.012, h * 0.012, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  } },
+
+  // ---------------- Selten ----------------
+  sturmvogel: { fg(e) { const { ctx, w, h, t } = e; // Sturmwirbel ziehen vorbei
+    ctx.save();
+    ctx.strokeStyle = "rgba(79,196,224,0.8)";
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 2; i++) {
+      const p = (t * 0.5 + i / 2) % 1, x = w * (0.75 - p * 0.6);
+      ctx.globalAlpha = Math.sin(Math.PI * p) * 0.8;
+      ctx.beginPath();
+      ctx.arc(x, h * (0.3 + i * 0.12), w * 0.03, t * 3 + i, t * 3 + i + 4.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } },
+  plasmaflitzer: { fg(e) { const { ctx, w, h, t } = e; // orbitierende Plasmakugeln
+    for (let i = 0; i < 3; i++) {
+      const a = t * 1.6 + i * (Math.PI * 2 / 3);
+      const x = w * 0.5 + Math.cos(a) * w * 0.4, y = h * 0.5 + Math.sin(a) * h * 0.28;
+      const behind = Math.sin(a) < 0;
+      ctx.save();
+      ctx.globalAlpha = behind ? 0.35 : 0.9;
+      ctx.fillStyle = "#ff5ae0";
+      ctx.shadowColor = "#ff5ae0";
+      ctx.shadowBlur = w * 0.02;
+      ctx.beginPath();
+      ctx.arc(x, y, w * (behind ? 0.008 : 0.013) * (1 + Math.sin(t * 5 + i) * 0.25), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  } },
+  kobalt_gt: { fg(e) { const { ctx, w, h, t } = e; // Energie-Ringe pulsieren aus den Felgen
+    for (const wx of [w * 0.24, w * 0.76]) {
+      const p = (t * 0.8 + (wx > w * 0.5 ? 0.5 : 0)) % 1;
+      fxRing(ctx, wx, h * 0.78, w * 0.03 + p * w * 0.09, "#4f8fff", (1 - p) * 0.7, 2);
+    }
+  } },
+  turbovolt_x: { fg(e) { const { ctx, w, h, t } = e; // blaue Turboflamme + X-Funken
+    const f = 0.7 + Math.sin(t * 26) * 0.3;
+    ctx.save();
+    ctx.translate(w * 0.07, h * 0.64);
+    ctx.fillStyle = "#4fa0ff";
+    ctx.beginPath(); ctx.moveTo(0, -h * 0.04); ctx.lineTo(-w * 0.09 * f, 0); ctx.lineTo(0, h * 0.04); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#d0ecff";
+    ctx.beginPath(); ctx.moveTo(0, -h * 0.02); ctx.lineTo(-w * 0.05 * f, 0); ctx.lineTo(0, h * 0.02); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    if ((t * 1.4) % 1 < 0.2) {
+      ctx.save();
+      ctx.strokeStyle = "#ffd75a";
+      ctx.lineWidth = 1.6;
+      ctx.shadowColor = "#ffd75a";
+      ctx.shadowBlur = 4;
+      const x = w * 0.12, y = h * 0.42, r = w * 0.018;
+      ctx.beginPath();
+      ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r);
+      ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r);
+      ctx.stroke();
+      ctx.restore();
+    }
+  } },
+  nachtschatten: { bg(e) { // Schattengeister hängen dem Auto nach
+    fxGhostBody(e, -e.w * 0.07, 0, 0.22);
+    fxGhostBody(e, -e.w * 0.14, 0, 0.1);
+  } },
+  silberpfeil_e: { fg(e) { const { ctx, w, h, t } = e; // ein Silberpfeil schießt nach vorn
+    const p = (t * 0.9) % 1, x = w * (0.1 + p * 0.8), y = h * 0.55;
+    ctx.save();
+    ctx.globalAlpha = Math.sin(Math.PI * p);
+    ctx.strokeStyle = "#e8ecf4";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#ffffff";
+    ctx.shadowBlur = 5;
+    ctx.beginPath(); ctx.moveTo(x - w * 0.1, y); ctx.lineTo(x, y); ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.02, y); ctx.lineTo(x - w * 0.005, y - h * 0.03); ctx.lineTo(x - w * 0.005, y + h * 0.03);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  } },
+  windschnitt: { fg(e) { const { ctx, w, h, t } = e; // messerscharfe Luftschnitte
+    for (let i = 0; i < 2; i++) {
+      const ph = (t * 0.7 + i * 0.5) % 1;
+      if (ph < 0.3) {
+        ctx.save();
+        ctx.globalAlpha = 1 - ph / 0.3;
+        ctx.strokeStyle = "#dfffee";
+        ctx.lineWidth = 1.2;
+        const x = w * (0.3 + i * 0.3);
+        ctx.beginPath(); ctx.moveTo(x, h * 0.2); ctx.lineTo(x + w * 0.14, h * 0.65); ctx.stroke();
+        ctx.restore();
+      }
+    }
+  } },
+  funkenflug: { fg(e) { const { ctx, w, h, t, car } = e; // Funkenfontäne am Heckrad
+    for (let i = 0; i < 6; i++) {
+      const p = (t * 1.1 + carRand(car, i)) % 1;
+      const x = w * 0.24 - p * w * (0.1 + carRand(car, i + 6) * 0.1);
+      const y = h * 0.75 - Math.sin(Math.PI * p) * h * (0.15 + carRand(car, i + 12) * 0.2);
+      ctx.save();
+      ctx.globalAlpha = 1 - p;
+      ctx.fillStyle = i % 2 ? "#ffd75a" : "#ff9a3c";
+      ctx.shadowColor = "#ffb84a";
+      ctx.shadowBlur = 3;
+      ctx.fillRect(x, y, Math.max(1.2, w * 0.007), Math.max(1.2, w * 0.007));
+      ctx.restore();
+    }
+  } },
+  amperecoupe: { fg(e) { const { ctx, w, h, t } = e; // Strombogen zwischen den Rädern
+    if ((t * 1.2) % 1 < 0.55) fxBolt(ctx, w * 0.24, h * 0.8, w * 0.76, h * 0.8, "#4fd0ff", Math.floor(t * 8), h * 0.05, 1.4);
+  } },
+  blitzrochen: { fg(e) { const { ctx, w, h, t } = e; // Blitze gleiten wie ein Rochen unterm Bauch entlang
+    const x = w * (0.3 + ((t * 0.5) % 1) * 0.4);
+    fxBolt(ctx, x, h * 0.72, x + w * 0.08, h * 0.72, "#b07aff", Math.floor(t * 9), h * 0.035, 1.3);
+  } },
+
+  // ---------------- Episch ----------------
+  photon_gt: { fg(e) { const { ctx, w, h, t } = e; // Photonenstrahl aus dem Scheinwerfer
+    ctx.save();
+    ctx.globalAlpha = 0.3 + Math.sin(t * 3) * 0.15;
+    const g = ctx.createLinearGradient(w * 0.92, 0, w * 1.15, 0);
+    g.addColorStop(0, "rgba(255,250,220,0.9)");
+    g.addColorStop(1, "rgba(255,250,220,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.92, h * 0.5);
+    ctx.lineTo(w * 1.15, h * 0.4 + Math.sin(t * 1.5) * h * 0.04);
+    ctx.lineTo(w * 1.15, h * 0.68);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    fxTwinkle(ctx, w * 0.92, h * 0.51, w * 0.024, "#fffbe0", 0.6 + Math.sin(t * 5) * 0.4);
+  } },
+  quantensprung: { fg(e) { const { ctx, w, h, t } = e; // Quanten-Teleport-Flackern
+    const ph = (t * 0.55) % 1;
+    if (ph < 0.22) {
+      const k = 1 - ph / 0.22;
+      fxGhostBody(e, w * 0.1 * k, 0, 0.35 * k);
+      fxGhostBody(e, -w * 0.1 * k, 0, 0.35 * k);
+      fxRing(ctx, w * 0.5, h * 0.52, w * 0.2 + ph * w * 0.6, "#b07aff", k * 0.6, 1.5);
+    }
+  } },
+  voltano: { bg(e) { const { ctx, w, h, t, gy } = e; // Lava-Glut unterm Wagen
+    ctx.save();
+    ctx.globalAlpha = 0.35 + Math.sin(t * 4) * 0.15;
+    ctx.fillStyle = "#ff5a2a";
+    ctx.beginPath();
+    ctx.ellipse(w * 0.5, gy, w * 0.4, h * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }, fg(e) { const { ctx, w, h, t, car } = e; // aufsteigende Glutpartikel
+    for (let i = 0; i < 5; i++) {
+      const p = (t * 0.5 + carRand(car, i)) % 1;
+      fxPuff(ctx, w * (0.2 + carRand(car, i + 5) * 0.6) + Math.sin(p * 7 + i) * w * 0.015, h * 0.6 - p * h * 0.4, Math.max(1, w * 0.006), i % 2 ? "255,120,60" : "255,190,90", 1 - p);
+    }
+  } },
+  neonstuermer: { fg(e) { const { ctx, w, h, t } = e; // Neonrand in wechselnder Farbe
+    const col = `hsl(${(t * 70) % 360},100%,65%)`;
+    ctx.save();
+    ctx.strokeStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = w * 0.03;
+    ctx.lineWidth = Math.max(1.5, w * 0.008);
+    ctx.beginPath();
+    ctx.moveTo(w * 0.06, h * 0.6);
+    ctx.quadraticCurveTo(w * 0.08, h * 0.42, w * 0.24, h * 0.34);
+    ctx.lineTo(w * 0.46, h * 0.22);
+    ctx.lineTo(w * 0.68, h * 0.3);
+    ctx.quadraticCurveTo(w * 0.86, h * 0.4, w * 0.94, h * 0.6);
+    ctx.stroke();
+    ctx.restore();
+  } },
+  titanblitz: { fg(e) { const { ctx, w, h, t } = e; // Blitzeinschlag aufs Dach
+    const ph = (t * 0.45) % 1;
+    if (ph < 0.15) {
+      const k = 1 - ph / 0.15;
+      fxBolt(ctx, w * 0.36, 0, w * 0.46, h * 0.24, "#cfe4ff", Math.floor(t * 3), w * 0.03, 2.2);
+      fxTwinkle(ctx, w * 0.46, h * 0.24, w * 0.03 * k + w * 0.01, "#ffffff", k);
+      fxRing(ctx, w * 0.46, h * 0.24, w * 0.03 + ph * w * 0.25, "#cfe4ff", k * 0.8, 1.5);
+    }
+  } },
+  ionentiger: { fg(e) { const { ctx, w, h, t, car } = e; // pulsierende Tigerstreifen
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.15, 0.5 + Math.sin(t * 3) * 0.35);
+    ctx.strokeStyle = car.accent;
+    ctx.lineWidth = Math.max(2, w * 0.014);
+    ctx.lineCap = "round";
+    ctx.shadowColor = car.accent;
+    ctx.shadowBlur = w * 0.015;
+    for (let i = 0; i < 3; i++) {
+      const x = w * (0.34 + i * 0.12);
+      ctx.beginPath();
+      ctx.moveTo(x, h * 0.42);
+      ctx.quadraticCurveTo(x - w * 0.03, h * 0.55, x + w * 0.01, h * 0.7);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } },
+  plasmapanther: { fg(e) { const { ctx, w, h, t } = e; // glühende Tatzen-Spur
+    for (let i = 0; i < 2; i++) {
+      const p = (t * 0.45 + i * 0.5) % 1, x = w * 0.18 - p * w * 0.14, y = h * 0.76;
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * 0.8;
+      ctx.fillStyle = "#ff5ad0";
+      ctx.shadowColor = "#ff5ad0";
+      ctx.shadowBlur = 4;
+      ctx.beginPath(); ctx.arc(x, y, w * 0.011, 0, Math.PI * 2); ctx.fill();
+      for (let z = 0; z < 3; z++) {
+        ctx.beginPath();
+        ctx.arc(x + (z - 1) * w * 0.012, y - h * 0.035, w * 0.005, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  } },
+  hyperdrift: { fg(e) { const { ctx, w, h, t, car } = e; // Driftqualm + Speedlines
+    for (let i = 0; i < 4; i++) {
+      const p = (t * 0.7 + carRand(car, i)) % 1;
+      fxPuff(ctx, w * 0.2 - p * w * 0.15, h * 0.74 - p * h * 0.1, w * 0.02 + p * w * 0.03, "220,220,225", (1 - p) * 0.4);
+    }
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) {
+      const p = (t * 1.6 + i / 3) % 1, x = w * (0.05 + p * 0.25);
+      ctx.globalAlpha = (1 - p) * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(x, h * (0.3 + i * 0.15)); ctx.lineTo(x + w * 0.07, h * (0.3 + i * 0.15));
+      ctx.stroke();
+    }
+    ctx.restore();
+  } },
+  schockwelle: { fg(e) { const { ctx, w, h, t } = e; // Schockwellen-Ringe
+    for (let i = 0; i < 2; i++) {
+      const p = (t * 0.55 + i / 2) % 1;
+      fxRing(ctx, w * 0.5, h * 0.55, w * 0.05 + p * w * 0.42, "#ffe45a", (1 - p) * 0.55, 2.5);
+    }
+  } },
+  prisma_x: { fg(e) { const { ctx, w, h, t } = e; // Regenbogen-Prismenstrahlen
+    const cols = ["#ff5a5a", "#ffd75a", "#5aff7a", "#5ab4ff", "#b45aff"];
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    cols.forEach((c, i) => {
+      const a = -0.9 + i * 0.18 + Math.sin(t * 1.2) * 0.08;
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.55, h * 0.3);
+      ctx.lineTo(w * 0.55 + Math.cos(a) * w * 0.4, h * 0.3 + Math.sin(a) * w * 0.4);
+      ctx.stroke();
+    });
+    ctx.restore();
+  } },
+
+  // ---------------- Legendär ----------------
+  quantenblitz: { fg(e) { const { ctx, w, h, t } = e; // tanzende Blitzbögen über der Karosserie
+    const s = Math.floor(t * 7);
+    fxBolt(ctx, w * (0.2 + ((s * 131) % 50) / 100), h * 0.35, w * (0.45 + ((s * 77) % 45) / 100), h * (0.25 + ((s * 53) % 30) / 100), "#9fdcff", s, w * 0.02, 1.5);
+    if ((t * 7) % 1 < 0.5) fxBolt(ctx, w * 0.6, h * 0.28, w * 0.85, h * 0.4, "#dff2ff", s + 3, w * 0.018, 1.2);
+  } },
+  photon_supreme: { bg(e) { const { ctx, w, h, t } = e; // rotierender Strahlenkranz
+    ctx.save();
+    ctx.translate(w * 0.5, h * 0.52);
+    ctx.rotate(t * 0.35);
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    for (let i = 0; i < 10; i++) {
+      ctx.rotate(Math.PI / 5);
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(w * 0.5, -w * 0.035); ctx.lineTo(w * 0.5, w * 0.035);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }, fg(e) { const { ctx, w, h, t, car } = e;
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 0.6 + carRand(car, i)) % 1;
+      if (ph < 0.25) fxTwinkle(ctx, w * (0.2 + carRand(car, i + 3) * 0.6), h * (0.25 + carRand(car, i + 6) * 0.35), w * 0.018, "#ffffff", 1 - ph * 4);
+    }
+  } },
+  ewigkeitsmotor: { bg(e) { const { ctx, w, h, t } = e; // goldenes Uhrwerk dreht sich dahinter
+    ctx.save();
+    ctx.translate(w * 0.5, h * 0.54);
+    ctx.rotate(t * 0.5);
+    ctx.strokeStyle = "rgba(212,175,55,0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, w * 0.36, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * w * 0.36, Math.sin(a) * w * 0.36);
+      ctx.lineTo(Math.cos(a) * w * 0.41, Math.sin(a) * w * 0.41);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }, fg(e) { const { ctx, w, h, t } = e;
+    fxRing(ctx, w * 0.5, h * 0.54, w * 0.42, "#ffd75a", (0.5 + Math.sin(t * 2) * 0.3) * 0.35, 1.2);
+  } },
+  singularitaet_x: { bg(e) { const { ctx, w, h, t } = e; // Schwarzes Loch saugt Sterne an
+    const cx = w * 0.5, cy = h * 0.5;
+    ctx.save();
+    ctx.strokeStyle = "rgba(122,90,255,0.5)";
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, w * (0.18 + i * 0.1), t * (1.2 - i * 0.3) + i * 2, t * (1.2 - i * 0.3) + i * 2 + 4);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 6; i++) {
+      const p = 1 - ((t * 0.4 + i / 6) % 1);
+      const a = t * 1.5 + i * 1.05 + p * 4, r = p * w * 0.45;
+      ctx.globalAlpha = 1 - p * 0.7;
+      ctx.fillStyle = "#cfc0ff";
+      ctx.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.55, 1.6, 1.6);
+    }
+    ctx.restore();
+  } },
+  sternenstaub_gt: { fg(e) { const { ctx, w, h, t, car } = e; // funkelnder Sternenstaub-Schweif
+    for (let i = 0; i < 6; i++) {
+      const p = (t * 0.5 + carRand(car, i)) % 1;
+      const x = w * 0.2 - p * w * 0.18;
+      const y = h * (0.35 + carRand(car, i + 6) * 0.3) + Math.sin(p * 6 + i) * h * 0.03;
+      fxTwinkle(ctx, x, y, w * (0.006 + carRand(car, i + 12) * 0.01), "#d8b8ff", 1 - p);
+    }
+  } },
+  voltgott: { bg(e) { const { ctx, w, h, t } = e; // göttliche Strom-Aura
+    ctx.save();
+    const a = 0.18 + Math.sin(t * 2.5) * 0.08;
+    const g = ctx.createRadialGradient(w * 0.5, h * 0.5, w * 0.05, w * 0.5, h * 0.5, w * 0.5);
+    g.addColorStop(0, `rgba(63,240,255,${a})`);
+    g.addColorStop(1, "rgba(63,240,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }, fg(e) { const { ctx, w, h, t } = e; // Blitze des Voltgotts + Blitzkrone
+    const ph = (t * 0.8) % 1, s = Math.floor(t * 0.8);
+    if (ph < 0.2) {
+      fxBolt(ctx, w * 0.12, 0, w * 0.35, h * 0.3, "#bff8ff", s, w * 0.03, 2);
+      fxBolt(ctx, w * 0.9, 0, w * 0.7, h * 0.28, "#bff8ff", s + 5, w * 0.03, 2);
+    }
+    if ((t * 5) % 1 < 0.6) fxBolt(ctx, w * 0.4, h * 0.16, w * 0.62, h * 0.18, "#eafcff", Math.floor(t * 10), w * 0.016, 1.2);
+  } },
+  zeitraffer_e: { bg(e) { // Zeitraffer-Nachbilder hinter dem Auto
+    fxGhostBody(e, -e.w * 0.05, 0, 0.3);
+    fxGhostBody(e, -e.w * 0.1, 0, 0.16);
+    fxGhostBody(e, -e.w * 0.15, 0, 0.07);
+  }, fg(e) { const { ctx, w, h, t } = e; // schwebende Uhr mit rasendem Zeiger
+    const x = w * 0.18, y = h * 0.2, r = w * 0.035;
+    ctx.save();
+    ctx.strokeStyle = "#ffb46a";
+    ctx.lineWidth = 1.4;
+    ctx.shadowColor = "#ffb46a";
+    ctx.shadowBlur = 3;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(t * 6) * r * 0.7, y + Math.sin(t * 6) * r * 0.7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(t * 0.5) * r * 0.45, y + Math.sin(t * 0.5) * r * 0.45); ctx.stroke();
+    ctx.restore();
+  } },
+  unendlichkeitsantrieb: { fg(e) { const { ctx, w, h, t } = e; // Partikel auf einer Unendlich-Bahn
+    const cx = w * 0.5, cy = h * 0.42, sx = w * 0.42, sy = h * 0.2;
+    ctx.save();
+    for (let i = 0; i < 10; i++) {
+      const u = t * 1.1 - i * 0.07;
+      const x = cx + Math.cos(u) * sx, y = cy + Math.sin(2 * u) * sy * 0.5;
+      ctx.globalAlpha = (1 - i / 10) * 0.9;
+      ctx.fillStyle = "#7dffc0";
+      ctx.shadowColor = "#7dffc0";
+      ctx.shadowBlur = i ? 0 : 5;
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(1, w * 0.008 * (1 - i / 12)), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  } },
+  kosmosracer: { bg(e) { const { ctx, w, h, t, car } = e; // Nebelschwaden + funkelnde Sterne
+    ctx.save();
+    for (let i = 0; i < 3; i++) {
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = i % 2 ? "#7a5aff" : "#3f8fd4";
+      ctx.beginPath();
+      ctx.ellipse(w * (0.25 + i * 0.25) + Math.sin(t * 0.4 + i) * w * 0.03, h * (0.3 + (i % 2) * 0.3), w * 0.14, h * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < 8; i++) {
+      const tw = 0.4 + Math.sin(t * 2 + i * 1.7) * 0.4;
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0, tw)})`;
+      ctx.fillRect(w * carRand(car, i), h * carRand(car, i + 8) * 0.9, 1.4, 1.4);
+    }
+    ctx.restore();
+  }, fg(e) { const { ctx, w, h, t } = e; // kleiner Ringplanet im Orbit
+    const a = t * 0.9, x = w * 0.5 + Math.cos(a) * w * 0.42, y = h * 0.45 + Math.sin(a) * h * 0.3;
+    ctx.save();
+    ctx.fillStyle = "#ffb46a";
+    ctx.beginPath(); ctx.arc(x, y, w * 0.012, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(255,180,106,0.7)";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(x, y, w * 0.022, w * 0.007, -0.4, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  } },
+  apex_volt: { fg(e) { const { ctx, w, h, t } = e; // die Blitzkrone des Champions
+    const cx = w * 0.52, cy = h * 0.1;
+    ctx.save();
+    ctx.globalAlpha = 0.75 + Math.sin(t * 3) * 0.25;
+    ctx.fillStyle = "#ffd43f";
+    ctx.shadowColor = "#ffd43f";
+    ctx.shadowBlur = w * 0.02;
+    ctx.beginPath();
+    ctx.moveTo(cx - w * 0.05, cy + h * 0.06); ctx.lineTo(cx - w * 0.05, cy);
+    ctx.lineTo(cx - w * 0.025, cy + h * 0.035); ctx.lineTo(cx, cy - h * 0.02);
+    ctx.lineTo(cx + w * 0.025, cy + h * 0.035); ctx.lineTo(cx + w * 0.05, cy);
+    ctx.lineTo(cx + w * 0.05, cy + h * 0.06);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    if ((t * 1.1) % 1 < 0.25) {
+      fxBolt(ctx, cx - w * 0.05, cy + h * 0.02, cx - w * 0.16, h * 0.3, "#ffe98a", Math.floor(t * 4), w * 0.02, 1.4);
+      fxBolt(ctx, cx + w * 0.05, cy + h * 0.02, cx + w * 0.14, h * 0.32, "#ffe98a", Math.floor(t * 4) + 2, w * 0.02, 1.4);
+    }
+    fxRing(ctx, w * 0.5, h * 0.55, w * 0.4 + Math.sin(t * 2) * w * 0.02, "#ffd43f", 0.2, 1.5);
+  } },
+};
+
+const GROUND_Y = { common: 0.78, uncommon: 0.78, rare: 0.78, epic: 0.8, legendary: 0.82 };
+const SHADOW_SPREAD = { common: 0.4, uncommon: 0.42, rare: 0.44, epic: 0.46, legendary: 0.5 };
+
+function renderCar(ctx, w, h, car, t) {
+  const fx = CAR_FX[car.id] || {};
+  const e = { ctx, w, h, t: t || 0, car, gy: h * GROUND_Y[car.rarity] };
+  drawGroundShadow(ctx, w, h, e.gy, SHADOW_SPREAD[car.rarity]);
+  if (fx.bg) fx.bg(e);
+  ctx.save();
+  if (fx.transform) fx.transform(e);
+  CAR_BODY_FN[car.rarity](ctx, w, h, car);
+  ctx.restore();
+  if (fx.fg) fx.fg(e);
+}
+
+// Eine einzige rAF-Schleife animiert alle sichtbaren Karten-Icons (~30 fps
+// reichen dafür völlig). Nicht mehr eingehängte Canvases werden automatisch
+// aussortiert, unsichtbare (z. B. in geschlossenen Modals) übersprungen.
+const ANIMATED_ICONS = new Map();
+let iconLoopActive = false;
+let lastIconFrame = 0;
+
+function iconAnimFrame(now) {
+  for (const cv of ANIMATED_ICONS.keys()) {
+    if (!cv.isConnected) ANIMATED_ICONS.delete(cv);
+  }
+  if (ANIMATED_ICONS.size === 0) {
+    iconLoopActive = false;
+    return;
+  }
+  if (now - lastIconFrame >= 33) {
+    lastIconFrame = now;
+    const t = now / 1000;
+    for (const [cv, car] of ANIMATED_ICONS) {
+      if (cv.offsetParent === null) continue;
+      const ctx = cv.getContext("2d");
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      renderCar(ctx, cv.width, cv.height, car, t);
+    }
+  }
+  requestAnimationFrame(iconAnimFrame);
+}
+
 function drawCarIcon(canvasEl, car) {
+  ANIMATED_ICONS.set(canvasEl, car);
   const ctx = canvasEl.getContext("2d");
-  const w = canvasEl.width, h = canvasEl.height;
-  ctx.clearRect(0, 0, w, h);
-  CAR_DRAW_FN[car.rarity](ctx, w, h, car);
+  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  renderCar(ctx, canvasEl.width, canvasEl.height, car, performance.now() / 1000);
+  if (!iconLoopActive) {
+    iconLoopActive = true;
+    requestAnimationFrame(iconAnimFrame);
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -1076,7 +1858,7 @@ function animateRace(playerCar, opponentCar, playerWins, onDone) {
     ctx.save();
     ctx.translate(x, y - chh / 2);
     ctx.scale(facing, 1);
-    CAR_DRAW_FN[car.rarity](ctx, cw, chh, car);
+    renderCar(ctx, cw, chh, car, performance.now() / 1000);
     ctx.restore();
   }
 
