@@ -1,0 +1,129 @@
+:root {
+  --bg: #14171c;
+  --panel: #1d2127;
+  --panel-alt: #262b33;
+  --text: #f4f6f8;
+  --text-dim: #a9b2bc;
+  --accent: #5ac8fa;
+  --warn: #f2c94c;
+  --warn-bg: rgba(242, 201, 76, 0.1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: radial-gradient(circle at 50% 0%, #232a33 0%, var(--bg) 70%);
+  color: var(--text);
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#app {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+
+a.back-link {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 14px;
+}
+a.back-link:hover { color: var(--text); }
+
+h1 {
+  margin: 18px 0 4px;
+  font-size: clamp(28px, 5vw, 40px);
+}
+
+.subtitle {
+  color: var(--text-dim);
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+h2 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin: 32px 0 10px;
+}
+
+p, li { line-height: 1.6; }
+
+.panel {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.warning {
+  background: var(--warn-bg);
+  border: 1px solid rgba(242, 201, 76, 0.35);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 8px 0 24px;
+}
+
+.warning strong { color: var(--warn); }
+
+.warning ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.code-block {
+  position: relative;
+  background: #0d0f13;
+  border-radius: 12px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 10px 0 8px;
+}
+
+.code-block pre {
+  margin: 0;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.copy-btn {
+  background: var(--panel-alt);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+.copy-btn:hover { border-color: var(--accent); }
+.copy-btn.copied { color: var(--accent); border-color: var(--accent); }
+
+.download-link {
+  display: inline-block;
+  margin: 4px 0 4px 10px;
+  color: var(--accent);
+  font-size: 13px;
+  text-decoration: none;
+}
+.download-link:hover { text-decoration: underline; }
+
+.step-list {
+  padding-left: 20px;
+}
+.step-list li { margin-bottom: 8px; }
+
+code.inline {
+  background: var(--panel-alt);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}

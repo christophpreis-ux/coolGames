@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Festplatten-Reiniger</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <a class="back-link" href="../index.html">← Zurück zur Übersicht</a>
+  <h1>🧹 Festplatten-Reiniger</h1>
+  <p class="subtitle">Überschreibt den <b>freien</b> Speicherplatz deiner Festplatte mit Nullen. Kein Browser kann das direkt tun (Webseiten haben keinen Zugriff auf rohen Speicherplatz) – deshalb gibt's hier den fertigen Terminal-Befehl zum Kopieren, für macOS und Linux gleichermaßen.</p>
+
+  <div class="warning">
+    <strong>Bevor du das laufen lässt:</strong>
+    <ul>
+      <li>Es wird lediglich eine einzige Datei angelegt, die mit Nullen gefüllt wird, bis der Datenträger voll ist – danach wird genau diese Datei wieder gelöscht. Bereits vorhandene Dateien werden nie angefasst, es wird nie direkt auf ein Geräte-/Raw-Device geschrieben.</li>
+      <li>Der Datenträger ist währenddessen kurzzeitig zu 100&nbsp;% voll – andere offene Programme können in dem Moment Fehler beim Speichern zeigen.</li>
+      <li>Auf SSDs/Flash-Speicher (Standard bei aktuellen Macs) bringt das sicherheitstechnisch kaum etwas: Wear-Leveling und TRIM sorgen ohnehin dafür, dass „freie" Blöcke intern neu verwaltet werden. Apple hat deshalb z.&nbsp;B. „Papierkorb sicher leeren" seit Jahren entfernt. Sinnvoll bleibt der Trick trotzdem, etwa um Backup-Images oder VM-Disks danach besser komprimieren zu können.</li>
+      <li>Je nach freiem Speicherplatz kann der Vorgang lange dauern.</li>
+    </ul>
+  </div>
+
+  <h2>Schnellbefehl (macOS &amp; Linux)</h2>
+  <p>Zum direkten Einfügen ins Terminal – überschreibt den freien Platz auf dem Volume deines Home-Verzeichnisses:</p>
+  <div class="code-block">
+    <pre id="oneliner-code">f="$HOME/.wipe_free_space_fill.tmp"; trap 'rm -f "$f"' EXIT INT TERM; dd if=/dev/zero of="$f" bs=1048576 2>/dev/null; rm -f "$f"; echo "Fertig: freier Speicher überschrieben."</pre>
+  </div>
+  <button class="copy-btn" data-copy-target="oneliner-code">📋 Befehl kopieren</button>
+  <p>Für eine externe Festplatte ersetze <code class="inline">$HOME</code> durch den Pfad des Volumes, z.&nbsp;B. <code class="inline">/Volumes/MeineDrive</code> (macOS) oder <code class="inline">/media/meindrive</code> (Linux). Mit <kbd>Strg</kbd>+<kbd>C</kbd> kannst du jederzeit sicher abbrechen – die Fülldatei wird dabei automatisch wieder entfernt.</p>
+
+  <h2>Skript mit Sicherheitsabfrage (empfohlen)</h2>
+  <p>Zeigt vorher freien Speicherplatz und Warnhinweise an und fragt einmal nach, bevor es losgeht:</p>
+  <div class="code-block">
+    <pre id="script-code">#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET_DIR="${1:-$HOME}"
+FILL_FILE="$TARGET_DIR/.wipe_free_space_fill.tmp"
+
+cleanup() { rm -f "$FILL_FILE"; }
+trap cleanup EXIT INT TERM
+
+if [ ! -d "$TARGET_DIR" ]; then echo "Verzeichnis nicht gefunden: $TARGET_DIR" >&2; exit 1; fi
+if [ ! -w "$TARGET_DIR" ]; then echo "Keine Schreibrechte in: $TARGET_DIR" >&2; exit 1; fi
+
+FREE_KB=$(df -Pk "$TARGET_DIR" | awk 'NR==2 {print $4}')
+FREE_GB=$((FREE_KB / 1024 / 1024))
+echo "Ziel-Verzeichnis:  $TARGET_DIR"
+echo "Freier Speicher:   ca. ${FREE_GB} GB"
+echo
+read -r -p "Freien Speicher jetzt mit Nullen überschreiben? [y/N] " confirm
+case "$confirm" in
+  [yY]|[jJ]) ;;
+  *) echo "Abgebrochen."; exit 0 ;;
+esac
+
+echo "Fülle freien Speicher mit Nullen (Strg+C zum sicheren Abbrechen)..."
+dd if=/dev/zero of="$FILL_FILE" bs=1048576 2>/dev/null || true
+
+sync 2>/dev/null || true
+echo "Fertig: freier Speicher wurde mit Nullen überschrieben, Fülldatei entfernt."</pre>
+  </div>
+  <button class="copy-btn" data-copy-target="script-code">📋 Skript kopieren</button>
+  <a class="download-link" href="wipe_free_space.sh" download>⬇ wipe_free_space.sh herunterladen</a>
+
+  <h2>So benutzt du das Skript</h2>
+  <ol class="step-list">
+    <li>Datei speichern, z.&nbsp;B. als <code class="inline">wipe_free_space.sh</code>.</li>
+    <li>Im Terminal ausführbar machen: <code class="inline">chmod +x wipe_free_space.sh</code></li>
+    <li>Starten: <code class="inline">./wipe_free_space.sh</code> (Systemvolume) oder <code class="inline">./wipe_free_space.sh /Volumes/MeineDrive</code> für eine andere Platte.</li>
+    <li>Sicherheitsabfrage mit <code class="inline">y</code> bestätigen.</li>
+  </ol>
+
+  <p class="subtitle" style="margin-top:32px;">Läuft identisch unter macOS und Linux – <code class="inline">dd</code>, <code class="inline">df</code> und <code class="inline">rm</code> sind auf beiden Systemen Standard-Bordmittel.</p>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
