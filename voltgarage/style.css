@@ -394,15 +394,75 @@ html, body {
 
 /* ---------- Pack opening ---------- */
 
-#pack-intro {
-  text-align: center;
-  padding: 10px 0;
+#pack-choose {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 12px;
+  padding: 6px 0;
 }
 
-#pack-art {
-  font-size: 64px;
-  margin-bottom: 10px;
+@media (max-width: 520px) {
+  #pack-choose { grid-template-columns: 1fr; }
+}
+
+.pack-option {
+  background: var(--panel-alt);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  transition: border-color .15s, transform .15s;
+}
+
+.pack-option:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.pack-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pack-option .pack-art {
+  font-size: 40px;
   animation: pack-bob 1.8s ease-in-out infinite;
+}
+
+.pack-option .pack-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.pack-level {
+  display: inline-block;
+  background: var(--accent-2);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 1px 8px;
+  vertical-align: middle;
+}
+
+.pack-level-2 { background: var(--c-legendary); color: #1b1f24; }
+
+.pack-option .pack-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.pack-option .pack-price {
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 14px;
 }
 
 @keyframes pack-bob {
@@ -412,10 +472,89 @@ html, body {
 
 .hidden { display: none !important; }
 
-#pack-cards .game-card {
+#pack-reveal-hint {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 4px 0 12px;
+}
+
+/* Verdeckte Karten: 3D-Flip beim Antippen */
+#pack-cards {
+  perspective: 1000px;
+}
+
+.pack-flip {
+  width: 150px;
+  height: 226px;
+  position: relative;
+  cursor: pointer;
   opacity: 0;
   transform: translateY(14px) scale(0.9);
   animation: card-pop .4s ease forwards;
+}
+
+.pack-flip-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform .55s cubic-bezier(.2,.7,.3,1.1);
+}
+
+.pack-flip.flipped .pack-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.pack-flip.flipped {
+  cursor: default;
+}
+
+.pack-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.pack-face-up {
+  transform: rotateY(180deg);
+}
+
+.pack-face-up .game-card {
+  width: 100%;
+  height: 100%;
+}
+
+.pack-back {
+  background:
+    repeating-linear-gradient(-35deg, rgba(122,90,255,0.14) 0 8px, transparent 8px 20px),
+    linear-gradient(150deg, #2a2f4a 0%, #171a2b 70%);
+  border: 2px solid var(--accent-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: 3px;
+  font-size: 13px;
+}
+
+.pack-back .pack-back-bolt {
+  font-size: 44px;
+  filter: drop-shadow(0 0 8px rgba(63,224,212,0.6));
+}
+
+.pack-back .pack-back-hint {
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  font-weight: 400;
+}
+
+.pack-flip:not(.flipped):hover .pack-flip-inner {
+  transform: rotateY(14deg);
 }
 
 @keyframes card-pop {

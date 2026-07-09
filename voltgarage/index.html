@@ -19,11 +19,13 @@
       <h2>So funktioniert's</h2>
       <ul>
         <li>Du startest mit einem einzigen, ziemlich schlechten Auto: der <b>Rostlaube</b>.</li>
-        <li>Mit Credits kaufst du <b>Booster</b> (wie Sammelkarten) – darin stecken zufällige Autos und Fähigkeitskarten. 50 verschiedene Autos und 50 verschiedene Fähigkeiten gibt es insgesamt.</li>
+        <li>Mit Credits kaufst du <b>Booster</b> (wie Sammelkarten): Auto-Booster und Fähigkeiten-Booster, jeweils in <b>Level 1 und Level 2</b> – Level 2 kostet mehr, hat aber viel bessere Chancen auf seltene Karten. 50 verschiedene Autos und 53 verschiedene Fähigkeiten gibt es insgesamt.</li>
+        <li>Die gezogenen Karten liegen erst <b>verdeckt</b> vor dir – tippe sie an, um sie eine nach der anderen umzudrehen.</li>
         <li>Gegner bieten dir immer wieder Rennen an. Du siehst ihr Auto vorher und kannst das Angebot <b>annehmen oder ablehnen</b>.</li>
-        <li>Nimmst du an, wählst du eins deiner Autos zum Fahren (und optional bis zu 2 Fähigkeitskarten, die sich dabei verbrauchen).</li>
+        <li>Nimmst du an, wählst du eins deiner Autos zum Fahren (und optional bis zu 2 Fähigkeitskarten, die sich dabei verbrauchen – manche <b>teleportieren</b> dich im Rennen sogar nach vorn).</li>
         <li><b>Gewinnst</b> du: Credits, manchmal sogar das gegnerische Auto obendrauf. <b>Verlierst</b> du: Dein eingesetztes Auto geht an den Gegner – außer eine Fähigkeit schützt dich.</li>
         <li>Deshalb lohnt es sich, riskante Angebote manchmal einfach abzulehnen.</li>
+        <li>Dein Spielstand wird <b>automatisch gespeichert</b> – du kannst jederzeit weiterspielen, wo du aufgehört hast.</li>
       </ul>
     </div>
   </section>
@@ -37,7 +39,7 @@
     </div>
 
     <div id="hub-actions">
-      <button id="btn-open-pack" class="primary-btn">📦 Booster öffnen (150 ⚡)</button>
+      <button id="btn-open-pack" class="primary-btn">📦 Booster kaufen</button>
       <button id="btn-get-offer" class="primary-btn">🏁 Rennangebot einholen</button>
     </div>
 
@@ -61,12 +63,9 @@
         <h2>Booster</h2>
         <button id="btn-pack-close" class="modal-close" aria-label="Schließen">✕</button>
       </div>
-      <div id="pack-intro">
-        <div id="pack-art">📦</div>
-        <p>Ein Booster enthält 5 zufällige Karten – Autos und Fähigkeiten gemischt.</p>
-        <button id="btn-pack-reveal" class="primary-btn">Öffnen!</button>
-      </div>
+      <div id="pack-choose"></div>
       <div id="pack-reveal" class="hidden">
+        <p id="pack-reveal-hint">Tippe auf die Karten, um sie umzudrehen!</p>
         <div id="pack-cards" class="card-grid"></div>
         <button id="btn-pack-done" class="primary-btn hidden">Weiter</button>
       </div>

@@ -14,12 +14,21 @@ const RARITY_LABEL = {
   epic: "Episch", legendary: "Legendär",
 };
 
-const PACK_PRICE = 150;
 const PACK_SIZE = 5;
 const STARTING_CREDITS = 300;
 
-// Wahrscheinlichkeiten (%) je Seltenheit für einen Booster-Zug.
-const PACK_ODDS = { common: 50, uncommon: 28, rare: 14, epic: 6, legendary: 2 };
+// Booster-Sortiment: Auto- und Fähigkeiten-Booster, jeweils Level 1 und 2.
+// Level 2 kostet deutlich mehr, hat dafür stark verbesserte Seltenheits-Chancen.
+const LV1_ODDS = { common: 50, uncommon: 28, rare: 14, epic: 6, legendary: 2 };
+const LV2_ODDS = { common: 16, uncommon: 30, rare: 30, epic: 16, legendary: 8 };
+const PACK_TYPES = {
+  auto1: { name: "Auto-Booster", level: 1, art: "📦", price: 150, pool: "cars", odds: LV1_ODDS, desc: "5 Auto-Karten" },
+  auto2: { name: "Auto-Booster", level: 2, art: "🏆", price: 450, pool: "cars", odds: LV2_ODDS, desc: "5 Auto-Karten, viel bessere Chancen auf seltene Autos" },
+  skill1: { name: "Fähigkeiten-Booster", level: 1, art: "🎴", price: 120, pool: "abilities", odds: LV1_ODDS, desc: "5 Fähigkeitskarten" },
+  skill2: { name: "Fähigkeiten-Booster", level: 2, art: "✨", price: 360, pool: "abilities", odds: LV2_ODDS, desc: "5 Fähigkeitskarten, viel bessere Chancen auf seltene Karten" },
+};
+const CHEAPEST_PACK_PRICE = Math.min(...Object.values(PACK_TYPES).map((p) => p.price));
+
 // Gegner-Autos sind im Schnitt etwas herausfordernder verteilt als Booster.
 const OPPONENT_ODDS = { common: 35, uncommon: 30, rare: 20, epic: 10, legendary: 5 };
 
@@ -142,6 +151,7 @@ const ABILITIES = [
   { id: "jackpot", name: "Jackpot", rarity: "rare", desc: "+70% Belohnung bei Sieg", effects: { rewardMult: 1.70 } },
   { id: "vollkasko", name: "Vollkasko", rarity: "rare", desc: "50% Chance, Auto bei Niederlage zu behalten", effects: { keepCarChance: 0.50 } },
   { id: "kopfgeldjaeger1", name: "Kopfgeldjäger I", rarity: "rare", desc: "+30% Chance auf Gegner-Auto bei Sieg", effects: { stealChanceBonus: 0.30 } },
+  { id: "kurzteleport", name: "Kurz-Teleport", rarity: "rare", desc: "Teleportiert dich im Rennen ein Stück nach vorn (+25% Rennwurf)", effects: { teleport: 0.25 } },
 
   // Episch
   { id: "nitro2", name: "Nitro-Schub II", rarity: "epic", desc: "+40% Tempo", effects: { speedBoost: 0.40 } },
@@ -154,6 +164,7 @@ const ABILITIES = [
   { id: "vollversicherung", name: "Vollversicherung", rarity: "epic", desc: "75% Chance, Auto bei Niederlage zu behalten", effects: { keepCarChance: 0.75 } },
   { id: "kopfgeldjaeger2", name: "Kopfgeldjäger II", rarity: "epic", desc: "+55% Chance auf Gegner-Auto bei Sieg", effects: { stealChanceBonus: 0.55 } },
   { id: "doppelzug", name: "Doppelzug", rarity: "epic", desc: "Nach dem Rennen: 100 Bonus-Credits", effects: { bonusCreditsAlways: 100 } },
+  { id: "blitzteleport", name: "Blitz-Teleport", rarity: "epic", desc: "Großer Teleport-Sprung nach vorn (+45% Rennwurf)", effects: { teleport: 0.45 } },
 
   // Legendär
   { id: "quantensprung_a", name: "Quantensprung", rarity: "legendary", desc: "+55% auf alle eigenen Werte", effects: { allBoost: 0.55 } },
@@ -166,6 +177,7 @@ const ABILITIES = [
   { id: "systemkollaps", name: "Systemkollaps", rarity: "legendary", desc: "Gegner-Werte halbiert (−50%)", effects: { oppAllDebuff: 0.50 } },
   { id: "meisterstratege", name: "Meisterstratege", rarity: "legendary", desc: "+35% eigene Werte, Gegner −20%", effects: { allBoost: 0.35, oppAllDebuff: 0.20 } },
   { id: "singularitaet", name: "Singularität", rarity: "legendary", desc: "Garantierter Sieg + garantiertes Gegner-Auto", effects: { guaranteedWin: true, stealChanceBonus: 1.0 } },
+  { id: "portalmeister", name: "Portal-Meister", rarity: "legendary", desc: "Riesiger Teleport-Sprung (+70% Rennwurf), und bei Niederlage teleportiert sich dein Auto sicher nach Hause", effects: { teleport: 0.7, keepCarChance: 1.0 } },
 ];
 
 const ABILITY_BY_ID = {};
@@ -203,6 +215,46 @@ let raceSelection = { carId: null, abilityIds: [] };
 let lastPackCards = [];
 
 // ---------------------------------------------------------------------
+// Autosave: Der komplette Spielstand landet nach jeder Änderung in
+// localStorage (updateHub ruft saveGame auf). Beim Laden werden nur
+// bekannte IDs übernommen, damit ein alter Spielstand nach Daten-
+// änderungen nichts kaputt machen kann.
+// ---------------------------------------------------------------------
+
+const SAVE_KEY = "voltgarage_save_v1";
+
+function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      credits,
+      ownedCars,
+      ownedAbilities,
+      discoveredCars: [...discoveredCars],
+      discoveredAbilities: [...discoveredAbilities],
+    }));
+  } catch (err) {
+    // z. B. Privatmodus ohne localStorage – dann eben ohne Speichern.
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (typeof s.credits !== "number" || !Array.isArray(s.ownedCars)) return false;
+    credits = s.credits;
+    ownedCars = s.ownedCars.filter((id) => CAR_BY_ID[id]);
+    ownedAbilities = (Array.isArray(s.ownedAbilities) ? s.ownedAbilities : []).filter((id) => ABILITY_BY_ID[id]);
+    discoveredCars = new Set((s.discoveredCars || []).filter((id) => CAR_BY_ID[id] && id !== STARTER_CAR.id));
+    discoveredAbilities = new Set((s.discoveredAbilities || []).filter((id) => ABILITY_BY_ID[id]));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------
 // DOM references
 // ---------------------------------------------------------------------
 
@@ -223,9 +275,8 @@ const abilityInventoryEl = document.getElementById("ability-inventory");
 
 const packModal = document.getElementById("pack-modal");
 const btnPackClose = document.getElementById("btn-pack-close");
-const packIntro = document.getElementById("pack-intro");
+const packChooseEl = document.getElementById("pack-choose");
 const packReveal = document.getElementById("pack-reveal");
-const btnPackReveal = document.getElementById("btn-pack-reveal");
 const packCardsEl = document.getElementById("pack-cards");
 const btnPackDone = document.getElementById("btn-pack-done");
 
@@ -1527,7 +1578,7 @@ function groupByIdWithCount(ids) {
 function updateHub() {
   hubCredits.textContent = `⚡ ${credits} Credits`;
   hubDex.textContent = `🗂️ ${discoveredCars.size}/${CARS.length} Autos · ${discoveredAbilities.size}/${ABILITIES.length} Fähigkeiten`;
-  btnOpenPack.disabled = credits < PACK_PRICE;
+  btnOpenPack.disabled = credits < CHEAPEST_PACK_PRICE;
   btnGetOffer.disabled = ownedCars.length === 0;
 
   garageGrid.innerHTML = ownedCars.length
@@ -1538,11 +1589,18 @@ function updateHub() {
   abilityInventoryEl.innerHTML = ownedAbilities.length
     ? groupByIdWithCount(ownedAbilities).map(({ id, count }) => abilityCardHTML(ABILITY_BY_ID[id], { count })).join("")
     : `<div class="empty-hint">Noch keine Fähigkeitskarten.</div>`;
+
+  saveGame();
 }
 
 // ---------------------------------------------------------------------
 // Intro / Start
 // ---------------------------------------------------------------------
+
+// Gespeicherten Spielstand laden (falls vorhanden).
+if (loadGame()) {
+  btnStart.textContent = "Weiterspielen";
+}
 
 btnStart.addEventListener("click", () => {
   // Rostlaube ist kein Teil der 50er-Sammlung und zählt daher nicht mit.
@@ -1551,34 +1609,54 @@ btnStart.addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------
-// Booster öffnen
+// Booster kaufen: erst Sorte wählen (Auto/Fähigkeiten, Lv. 1/2), dann
+// liegen die 5 Karten verdeckt da und werden einzeln angetippt.
 // ---------------------------------------------------------------------
 
-function drawPackCard() {
-  const rarity = pickWeightedRarity(PACK_ODDS);
-  const isCar = Math.random() < 0.5;
-  if (isCar) {
+function drawPackCard(pack) {
+  const rarity = pickWeightedRarity(pack.odds);
+  if (pack.pool === "cars") {
     return { type: "car", item: randomFrom(carsOfRarity(rarity)) };
   }
   return { type: "ability", item: randomFrom(abilitiesOfRarity(rarity)) };
 }
 
+function renderPackChoose() {
+  packChooseEl.innerHTML = Object.entries(PACK_TYPES).map(([id, p]) => `
+    <button class="pack-option" data-pack="${id}" ${credits < p.price ? "disabled" : ""}>
+      <div class="pack-art">${p.art}</div>
+      <div class="pack-name">${p.name} <span class="pack-level${p.level === 2 ? " pack-level-2" : ""}">Lv. ${p.level}</span></div>
+      <div class="pack-desc">${p.desc}</div>
+      <div class="pack-price">${p.price} ⚡</div>
+    </button>
+  `).join("");
+}
+
 btnOpenPack.addEventListener("click", () => {
-  if (credits < PACK_PRICE) return;
-  packIntro.classList.remove("hidden");
+  renderPackChoose();
+  packChooseEl.classList.remove("hidden");
   packReveal.classList.add("hidden");
   packCardsEl.innerHTML = "";
   btnPackDone.classList.add("hidden");
   openModal(packModal);
 });
 
-btnPackReveal.addEventListener("click", () => {
-  credits -= PACK_PRICE;
-  updateHub();
+packChooseEl.addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".pack-option");
+  if (!btn || btn.disabled) return;
+  const pack = PACK_TYPES[btn.dataset.pack];
+  if (!pack || credits < pack.price) return;
+  buyPack(pack);
+});
+
+function buyPack(pack) {
+  credits -= pack.price;
 
   lastPackCards = [];
-  for (let i = 0; i < PACK_SIZE; i++) lastPackCards.push(drawPackCard());
+  for (let i = 0; i < PACK_SIZE; i++) lastPackCards.push(drawPackCard(pack));
 
+  // Die Karten gehören dem Spieler ab dem Kauf – auch wenn das Modal
+  // vor dem Umdrehen geschlossen wird (wichtig fürs Autosave).
   for (const pull of lastPackCards) {
     if (pull.type === "car") {
       ownedCars.push(pull.item.id);
@@ -1588,17 +1666,36 @@ btnPackReveal.addEventListener("click", () => {
       discoveredAbilities.add(pull.item.id);
     }
   }
+  updateHub();
 
-  packIntro.classList.add("hidden");
+  packChooseEl.classList.add("hidden");
   packReveal.classList.remove("hidden");
+  btnPackDone.classList.add("hidden");
   packCardsEl.innerHTML = lastPackCards.map((pull, i) => {
-    const html = pull.type === "car" ? carCardHTML(pull.item) : abilityCardHTML(pull.item);
-    return html.replace('class="game-card', `style="animation-delay:${i * 0.15}s" class="game-card`);
+    const inner = pull.type === "car" ? carCardHTML(pull.item) : abilityCardHTML(pull.item);
+    return `
+      <div class="pack-flip" style="animation-delay:${i * 0.12}s">
+        <div class="pack-flip-inner">
+          <div class="pack-face pack-back">
+            <div class="pack-back-bolt">⚡</div>
+            <div>VOLT</div>
+            <div class="pack-back-hint">Antippen!</div>
+          </div>
+          <div class="pack-face pack-face-up">${inner}</div>
+        </div>
+      </div>
+    `;
   }).join("");
   drawAllPendingCarIcons(packCardsEl);
-  btnPackDone.classList.remove("hidden");
+}
 
-  updateHub();
+packCardsEl.addEventListener("click", (ev) => {
+  const flip = ev.target.closest(".pack-flip");
+  if (!flip || flip.classList.contains("flipped")) return;
+  flip.classList.add("flipped");
+  if (packCardsEl.querySelectorAll(".pack-flip:not(.flipped)").length === 0) {
+    btnPackDone.classList.remove("hidden");
+  }
 });
 
 btnPackDone.addEventListener("click", () => closeModal(packModal));
@@ -1692,6 +1789,7 @@ function combineEffects(abilityIds) {
     oppSpeedDebuff: 0, oppAccelDebuff: 0, oppHandlingDebuff: 0, oppAllDebuff: 0,
     rewardMult: 1, keepCarChance: 0, stealChanceBonus: 0,
     guaranteedWin: false, luckFloor: 0.7, refundOnLoss: 0, bonusCreditsAlways: 0,
+    teleport: 0,
   };
   for (const id of abilityIds) {
     const ab = ABILITY_BY_ID[id];
@@ -1711,6 +1809,7 @@ function combineEffects(abilityIds) {
     if (fx.luckFloor) e.luckFloor = Math.max(e.luckFloor, fx.luckFloor);
     if (fx.refundOnLoss) e.refundOnLoss += fx.refundOnLoss;
     if (fx.bonusCreditsAlways) e.bonusCreditsAlways += fx.bonusCreditsAlways;
+    if (fx.teleport) e.teleport += fx.teleport;
   }
   return e;
 }
@@ -1737,7 +1836,8 @@ function resolveRace(playerCar, opponentCar, effects) {
   );
 
   const rollRange = 1 - effects.luckFloor;
-  const playerRoll = playerBase * (effects.luckFloor + Math.random() * rollRange + 0.15);
+  // Ein Teleport wirkt als direkter Sprung nach vorn auf den Rennwurf.
+  const playerRoll = playerBase * (effects.luckFloor + Math.random() * rollRange + 0.15) * (1 + effects.teleport);
   const opponentRoll = opponentBase * (0.85 + Math.random() * 0.3);
 
   const playerWins = effects.guaranteedWin || playerRoll >= opponentRoll;
@@ -1750,7 +1850,7 @@ function runRace() {
   const effects = combineEffects(raceSelection.abilityIds);
   const outcome = resolveRace(playerCar, opponentCar, effects);
 
-  animateRace(playerCar, opponentCar, outcome.playerWins, () => {
+  animateRace(playerCar, opponentCar, outcome.playerWins, effects.teleport > 0, () => {
     applyRaceOutcome(playerCar, opponentCar, effects, outcome);
   });
 }
@@ -1811,11 +1911,12 @@ btnResultClose.addEventListener("click", () => closeModal(challengeModal));
 // Renn-Animation (Canvas)
 // ---------------------------------------------------------------------
 
-function animateRace(playerCar, opponentCar, playerWins, onDone) {
+function animateRace(playerCar, opponentCar, playerWins, teleportUsed, onDone) {
   const ctx = raceCanvas.getContext("2d");
   const w = raceCanvas.width, h = raceCanvas.height;
   const trackStart = w * 0.08, trackEnd = w * 0.92;
   const laneY = [h * 0.35, h * 0.7];
+  const TELEPORT_AT = 0.38; // Zeitpunkt des sichtbaren Teleport-Sprungs
 
   const margin = 0.06 + Math.random() * 0.22;
   const winnerPace = 1;
@@ -1882,13 +1983,43 @@ function animateRace(playerCar, opponentCar, playerWins, onDone) {
     const eased = 1 - Math.pow(1 - t, 2);
     drawTrack(t);
 
-    const playerX = trackStart + (trackEnd - trackStart) * eased * playerPace;
+    let playerX = trackStart + (trackEnd - trackStart) * eased * playerPace;
     const oppX = trackStart + (trackEnd - trackStart) * eased * opponentPace;
     const bob1 = Math.sin(elapsed / 90) * 2;
     const bob2 = Math.sin(elapsed / 90 + 1.4) * 2;
 
+    if (teleportUsed) {
+      // Vor dem Sprung hängt das Auto sichtbar zurück, dann schnappt es
+      // nach vorn – am Ziel stimmt die Position wieder mit dem Ergebnis überein.
+      const dist = (trackEnd - trackStart) * playerPace;
+      if (t < TELEPORT_AT) {
+        playerX -= dist * 0.12 * (1 - (t / TELEPORT_AT) * 0.4);
+      } else {
+        playerX += dist * 0.03 * (1 - (t - TELEPORT_AT) / (1 - TELEPORT_AT));
+      }
+    }
+
     drawSmallCar(playerCar, playerX, laneY[0] + bob1, 1);
     drawSmallCar(opponentCar, oppX, laneY[1] + bob2, 1);
+
+    if (teleportUsed && Math.abs(t - TELEPORT_AT) < 0.06) {
+      // Portal-Effekt: Ring am Austritt, Ring am Eintritt, Energiespur dazwischen.
+      const k = 1 - Math.abs(t - TELEPORT_AT) / 0.06;
+      const fromX = playerX - (trackEnd - trackStart) * playerPace * 0.14;
+      fxRing(ctx, playerX, laneY[0], 10 + (1 - k) * 34, "#7a5aff", k, 3);
+      fxRing(ctx, fromX, laneY[0], 8 + (1 - k) * 26, "#3fe0d4", k * 0.8, 2);
+      ctx.save();
+      ctx.globalAlpha = k * 0.9;
+      ctx.strokeStyle = "#bfa8ff";
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "#7a5aff";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(fromX, laneY[0]);
+      ctx.lineTo(playerX, laneY[0]);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (t < 1) {
       requestAnimationFrame(frame);
