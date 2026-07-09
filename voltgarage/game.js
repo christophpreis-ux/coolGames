@@ -331,22 +331,178 @@ function drawAllPendingCarIcons(container) {
 }
 
 // ---- Auto-Icons (Seitenansicht, je Seltenheit eine eigene Silhouette) ----
+// Jedes Auto bekommt Verlaufsschattierung, Scheiben mit Reflexion,
+// Scheinwerfer/Rücklichter, Spiegel und Felgen mit Speichen. Name-Zusätze
+// wirken sich auf die Zeichnung aus ("GT" -> Heckspoiler, "-E" -> Ladeblitz),
+// und ein deterministischer Hash der Auto-ID variiert Speichenzahl/Felgenstil
+// leicht, damit nicht alle Autos einer Seltenheit wie Klone aussehen.
 
-function drawWheels(ctx, w, h, positions, r) {
-  for (const x of positions) {
-    ctx.beginPath();
-    ctx.arc(x, h * 0.78, r, 0, Math.PI * 2);
-    ctx.fillStyle = "#14171b";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x, h * 0.78, r * 0.45, 0, Math.PI * 2);
-    ctx.fillStyle = "#5a6068";
-    ctx.fill();
-  }
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
 }
 
-function drawCarCommon(ctx, w, h, color, accent) {
-  const gy = h * 0.78;
+function shadeColor(hex, amt) {
+  const c = hex.replace("#", "");
+  const full = c.length === 3 ? c.split("").map((ch) => ch + ch).join("") : c;
+  const num = parseInt(full, 16);
+  const mix = amt >= 0 ? 255 : 0;
+  const k = Math.abs(amt);
+  const r = Math.round(((num >> 16) & 0xff) + (mix - ((num >> 16) & 0xff)) * k);
+  const g = Math.round(((num >> 8) & 0xff) + (mix - ((num >> 8) & 0xff)) * k);
+  const b = Math.round((num & 0xff) + (mix - (num & 0xff)) * k);
+  return `rgb(${r},${g},${b})`;
+}
+
+function bodyGradient(ctx, color, y0, y1) {
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, shadeColor(color, 0.3));
+  g.addColorStop(0.55, color);
+  g.addColorStop(1, shadeColor(color, -0.25));
+  return g;
+}
+
+function drawGroundShadow(ctx, w, h, gy, spread) {
+  ctx.save();
+  const grad = ctx.createRadialGradient(w * 0.5, gy, w * 0.05, w * 0.5, gy, w * (spread || 0.42));
+  grad.addColorStop(0, "rgba(0,0,0,0.4)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, gy + h * 0.02, w * (spread || 0.42), h * 0.07, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWindowGlass(ctx, pts) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+  ctx.clip();
+
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const g = ctx.createLinearGradient(minX, minY, maxX, maxY);
+  g.addColorStop(0, "rgba(150,190,215,0.6)");
+  g.addColorStop(1, "rgba(28,42,58,0.8)");
+  ctx.fillStyle = g;
+  ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.beginPath();
+  ctx.moveTo(minX + (maxX - minX) * 0.08, maxY);
+  ctx.lineTo(minX + (maxX - minX) * 0.32, minY);
+  ctx.lineTo(minX + (maxX - minX) * 0.48, minY);
+  ctx.lineTo(minX + (maxX - minX) * 0.24, maxY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHeadlight(ctx, x, y, r, glow) {
+  ctx.save();
+  if (glow) { ctx.shadowColor = "#fff6c8"; ctx.shadowBlur = r * 2.4; }
+  ctx.fillStyle = "#fff6c8";
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawTaillight(ctx, x, y, r, glow) {
+  ctx.save();
+  if (glow) { ctx.shadowColor = "#ff4d4d"; ctx.shadowBlur = r * 2.2; }
+  ctx.fillStyle = "#e0403f";
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawMirror(ctx, x, y, s, accent) {
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.ellipse(x, y, s, s * 0.6, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawSpoiler(ctx, x, gy, wingW, wingH, accent) {
+  ctx.fillStyle = accent;
+  ctx.fillRect(x, gy - wingH * 2.4, wingW * 0.12, wingH * 2.2);
+  ctx.fillRect(x - wingW * 0.5, gy - wingH * 2.6, wingW, wingH * 0.4);
+}
+
+function drawChargeBolt(ctx, x, y, s, accent) {
+  ctx.save();
+  ctx.fillStyle = accent;
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = s * 1.4;
+  ctx.beginPath();
+  ctx.moveTo(x + s * 0.35, y - s);
+  ctx.lineTo(x - s * 0.3, y + s * 0.15);
+  ctx.lineTo(x + s * 0.05, y + s * 0.15);
+  ctx.lineTo(x - s * 0.35, y + s);
+  ctx.lineTo(x + s * 0.35, y - s * 0.1);
+  ctx.lineTo(x, y - s * 0.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWheel(ctx, x, gy, r, spokes, accent, caliper) {
+  ctx.beginPath();
+  ctx.arc(x, gy, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x, gy, r * 0.62, 0, Math.PI * 2);
+  ctx.fillStyle = "#7a828c";
+  ctx.fill();
+
+  if (caliper) {
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(x, gy, r * 0.42, -0.6, 0.6);
+    ctx.lineTo(x, gy);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = "#3a3f46";
+  ctx.lineWidth = Math.max(1, r * 0.12);
+  for (let i = 0; i < spokes; i++) {
+    const a = (i / spokes) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(x, gy);
+    ctx.lineTo(x + Math.cos(a) * r * 0.58, gy + Math.sin(a) * r * 0.58);
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.arc(x, gy, r * 0.16, 0, Math.PI * 2);
+  ctx.fillStyle = "#c8ccd2";
+  ctx.fill();
+}
+
+function drawWheels(ctx, w, h, positions, r, baseSpokes, accent, caliper, variant) {
+  positions.forEach((x, i) => {
+    const spokes = baseSpokes + (variant % 3 === 0 ? 0 : variant % 3 === 1 ? 1 : -1);
+    drawWheel(ctx, x, h * 0.78, r, Math.max(3, spokes), accent, caliper);
+  });
+}
+
+function drawCarCommon(ctx, w, h, car) {
+  const color = car.color, accent = car.accent, gy = h * 0.78;
+  const variant = hashStr(car.id);
+  const isGT = /\bGT\b/.test(car.name);
+  const isE = /-E$/.test(car.name);
+
+  drawGroundShadow(ctx, w, h, gy, 0.4);
+
   ctx.beginPath();
   ctx.moveTo(w * 0.12, gy);
   ctx.lineTo(w * 0.12, h * 0.5);
@@ -356,31 +512,38 @@ function drawCarCommon(ctx, w, h, color, accent) {
   ctx.lineTo(w * 0.88, h * 0.5);
   ctx.lineTo(w * 0.88, gy);
   ctx.closePath();
-  ctx.fillStyle = color;
+  ctx.fillStyle = bodyGradient(ctx, color, h * 0.32, gy);
   ctx.fill();
+  ctx.strokeStyle = shadeColor(color, -0.35);
+  ctx.lineWidth = Math.max(1, w * 0.006);
+  ctx.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(w * 0.26, h * 0.36);
-  ctx.lineTo(w * 0.64, h * 0.36);
-  ctx.lineTo(w * 0.7, h * 0.5);
-  ctx.lineTo(w * 0.3, h * 0.5);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(200,225,240,0.55)";
-  ctx.fill();
+  drawWindowGlass(ctx, [[w * 0.26, h * 0.36], [w * 0.64, h * 0.36], [w * 0.7, h * 0.5], [w * 0.3, h * 0.5]]);
 
-  ctx.fillStyle = "rgba(90,60,30,0.4)";
+  ctx.strokeStyle = shadeColor(color, -0.3);
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(w * 0.3, h * 0.62, w * 0.025, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(w * 0.62, h * 0.66, w * 0.018, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(w * 0.5, h * 0.5);
+  ctx.lineTo(w * 0.5, gy);
+  ctx.stroke();
 
-  drawWheels(ctx, w, h, [w * 0.28, w * 0.72], w * 0.085);
+  drawMirror(ctx, w * 0.24, h * 0.42, w * 0.02, accent);
+  drawHeadlight(ctx, w * 0.87, h * 0.58, w * 0.028);
+  drawTaillight(ctx, w * 0.13, h * 0.58, w * 0.022);
+  if (isGT) drawSpoiler(ctx, w * 0.14, gy, w * 0.1, h * 0.05, accent);
+  if (isE) drawChargeBolt(ctx, w * 0.5, h * 0.44, w * 0.028, accent);
+
+  drawWheels(ctx, w, h, [w * 0.28, w * 0.72], w * 0.085, 4, accent, false, variant);
 }
 
-function drawCarUncommon(ctx, w, h, color, accent) {
-  const gy = h * 0.78;
+function drawCarUncommon(ctx, w, h, car) {
+  const color = car.color, accent = car.accent, gy = h * 0.78;
+  const variant = hashStr(car.id);
+  const isGT = /\bGT\b/.test(car.name);
+  const isE = /-E$/.test(car.name);
+
+  drawGroundShadow(ctx, w, h, gy, 0.42);
+
   ctx.beginPath();
   ctx.moveTo(w * 0.1, gy);
   ctx.lineTo(w * 0.1, h * 0.55);
@@ -389,26 +552,34 @@ function drawCarUncommon(ctx, w, h, color, accent) {
   ctx.quadraticCurveTo(w * 0.78, h * 0.34, w * 0.9, h * 0.55);
   ctx.lineTo(w * 0.9, gy);
   ctx.closePath();
-  ctx.fillStyle = color;
+  ctx.fillStyle = bodyGradient(ctx, color, h * 0.3, gy);
   ctx.fill();
+  ctx.strokeStyle = shadeColor(color, -0.35);
+  ctx.lineWidth = Math.max(1, w * 0.006);
+  ctx.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(w * 0.34, h * 0.33);
-  ctx.lineTo(w * 0.6, h * 0.33);
-  ctx.lineTo(w * 0.68, h * 0.5);
-  ctx.lineTo(w * 0.28, h * 0.5);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(200,225,240,0.6)";
-  ctx.fill();
+  drawWindowGlass(ctx, [[w * 0.34, h * 0.33], [w * 0.6, h * 0.33], [w * 0.68, h * 0.5], [w * 0.28, h * 0.5]]);
 
   ctx.fillStyle = accent;
   ctx.fillRect(w * 0.12, h * 0.58, w * 0.76, h * 0.045);
 
-  drawWheels(ctx, w, h, [w * 0.26, w * 0.74], w * 0.09);
+  drawMirror(ctx, w * 0.22, h * 0.4, w * 0.022, accent);
+  drawHeadlight(ctx, w * 0.89, h * 0.56, w * 0.03, true);
+  drawTaillight(ctx, w * 0.11, h * 0.56, w * 0.024, true);
+  if (isGT) drawSpoiler(ctx, w * 0.13, gy, w * 0.11, h * 0.055, accent);
+  if (isE) drawChargeBolt(ctx, w * 0.5, h * 0.42, w * 0.03, accent);
+
+  drawWheels(ctx, w, h, [w * 0.26, w * 0.74], w * 0.09, 5, accent, false, variant);
 }
 
-function drawCarRare(ctx, w, h, color, accent) {
-  const gy = h * 0.78;
+function drawCarRare(ctx, w, h, car) {
+  const color = car.color, accent = car.accent, gy = h * 0.78;
+  const variant = hashStr(car.id);
+  const isGT = /\bGT\b/.test(car.name);
+  const isE = /-E$/.test(car.name);
+
+  drawGroundShadow(ctx, w, h, gy, 0.44);
+
   ctx.beginPath();
   ctx.moveTo(w * 0.08, gy);
   ctx.lineTo(w * 0.08, h * 0.58);
@@ -418,27 +589,35 @@ function drawCarRare(ctx, w, h, color, accent) {
   ctx.quadraticCurveTo(w * 0.88, h * 0.4, w * 0.92, h * 0.58);
   ctx.lineTo(w * 0.92, gy);
   ctx.closePath();
-  ctx.fillStyle = color;
+  ctx.fillStyle = bodyGradient(ctx, color, h * 0.24, gy);
   ctx.fill();
+  ctx.strokeStyle = shadeColor(color, -0.35);
+  ctx.lineWidth = Math.max(1, w * 0.006);
+  ctx.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(w * 0.32, h * 0.34);
-  ctx.lineTo(w * 0.5, h * 0.27);
-  ctx.lineTo(w * 0.66, h * 0.34);
-  ctx.lineTo(w * 0.62, h * 0.48);
-  ctx.lineTo(w * 0.36, h * 0.48);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(200,225,240,0.6)";
-  ctx.fill();
+  drawWindowGlass(ctx, [[w * 0.32, h * 0.34], [w * 0.5, h * 0.27], [w * 0.66, h * 0.34], [w * 0.62, h * 0.48], [w * 0.36, h * 0.48]]);
 
   ctx.fillStyle = accent;
   ctx.fillRect(w * 0.47, h * 0.24, w * 0.055, h * 0.5);
+  ctx.fillRect(w * 0.1, h * 0.6, w * 0.15, h * 0.03);
+  ctx.fillRect(w * 0.75, h * 0.6, w * 0.15, h * 0.03);
 
-  drawWheels(ctx, w, h, [w * 0.24, w * 0.76], w * 0.095);
+  drawMirror(ctx, w * 0.24, h * 0.38, w * 0.024, accent);
+  drawHeadlight(ctx, w * 0.9, h * 0.54, w * 0.032, true);
+  drawTaillight(ctx, w * 0.1, h * 0.54, w * 0.026, true);
+  if (isGT) drawSpoiler(ctx, w * 0.12, gy, w * 0.12, h * 0.06, accent);
+  if (isE) drawChargeBolt(ctx, w * 0.5, h * 0.36, w * 0.032, accent);
+
+  drawWheels(ctx, w, h, [w * 0.24, w * 0.76], w * 0.095, 6, accent, true, variant);
 }
 
-function drawCarEpic(ctx, w, h, color, accent) {
-  const gy = h * 0.8;
+function drawCarEpic(ctx, w, h, car) {
+  const color = car.color, accent = car.accent, gy = h * 0.8;
+  const variant = hashStr(car.id);
+  const isE = /-E$/.test(car.name);
+
+  drawGroundShadow(ctx, w, h, gy, 0.46);
+
   ctx.beginPath();
   ctx.moveTo(w * 0.06, gy);
   ctx.lineTo(w * 0.06, h * 0.6);
@@ -448,32 +627,48 @@ function drawCarEpic(ctx, w, h, color, accent) {
   ctx.quadraticCurveTo(w * 0.86, h * 0.4, w * 0.94, h * 0.6);
   ctx.lineTo(w * 0.94, gy);
   ctx.closePath();
-  ctx.fillStyle = color;
+  ctx.fillStyle = bodyGradient(ctx, color, h * 0.22, gy);
   ctx.fill();
+  ctx.strokeStyle = shadeColor(color, -0.35);
+  ctx.lineWidth = Math.max(1, w * 0.006);
+  ctx.stroke();
 
   ctx.fillStyle = accent;
   ctx.beginPath();
   ctx.ellipse(w * 0.3, h * 0.34, w * 0.045, h * 0.035, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.beginPath();
-  ctx.moveTo(w * 0.48, h * 0.26);
-  ctx.lineTo(w * 0.64, h * 0.32);
-  ctx.lineTo(w * 0.6, h * 0.46);
-  ctx.lineTo(w * 0.5, h * 0.46);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(200,225,240,0.6)";
-  ctx.fill();
+  drawWindowGlass(ctx, [[w * 0.48, h * 0.26], [w * 0.64, h * 0.32], [w * 0.6, h * 0.46], [w * 0.5, h * 0.46]]);
 
   ctx.fillStyle = accent;
   ctx.fillRect(w * 0.86, h * 0.26, w * 0.045, h * 0.2);
   ctx.fillRect(w * 0.81, h * 0.24, w * 0.13, h * 0.04);
+  ctx.fillRect(w * 0.1, h * 0.62, w * 0.16, h * 0.028);
+  ctx.fillRect(w * 0.74, h * 0.62, w * 0.16, h * 0.028);
 
-  drawWheels(ctx, w, h, [w * 0.24, w * 0.78], w * 0.1);
+  drawMirror(ctx, w * 0.22, h * 0.36, w * 0.026, accent);
+  drawHeadlight(ctx, w * 0.92, h * 0.52, w * 0.034, true);
+  drawHeadlight(ctx, w * 0.87, h * 0.5, w * 0.02, true);
+  drawTaillight(ctx, w * 0.08, h * 0.52, w * 0.028, true);
+  if (isE) drawChargeBolt(ctx, w * 0.5, h * 0.34, w * 0.034, accent);
+
+  drawWheels(ctx, w, h, [w * 0.24, w * 0.78], w * 0.1, 7, accent, true, variant);
 }
 
-function drawCarLegendary(ctx, w, h, color, accent) {
-  const gy = h * 0.82;
+function drawCarLegendary(ctx, w, h, car) {
+  const color = car.color, accent = car.accent, gy = h * 0.82;
+  const variant = hashStr(car.id);
+  const isE = /-E$/.test(car.name);
+
+  drawGroundShadow(ctx, w, h, gy, 0.5);
+  ctx.save();
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.25;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, gy + h * 0.01, w * 0.46, h * 0.045, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
   ctx.save();
   ctx.shadowColor = accent;
   ctx.shadowBlur = w * 0.045;
@@ -486,18 +681,14 @@ function drawCarLegendary(ctx, w, h, color, accent) {
   ctx.quadraticCurveTo(w * 0.9, h * 0.4, w * 0.96, h * 0.6);
   ctx.lineTo(w * 0.95, gy);
   ctx.closePath();
-  ctx.fillStyle = color;
+  ctx.fillStyle = bodyGradient(ctx, color, h * 0.2, gy);
   ctx.fill();
   ctx.restore();
+  ctx.strokeStyle = shadeColor(color, -0.4);
+  ctx.lineWidth = Math.max(1, w * 0.006);
+  ctx.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(w * 0.56, h * 0.24);
-  ctx.lineTo(w * 0.72, h * 0.32);
-  ctx.lineTo(w * 0.68, h * 0.44);
-  ctx.lineTo(w * 0.58, h * 0.44);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(210,235,255,0.7)";
-  ctx.fill();
+  drawWindowGlass(ctx, [[w * 0.56, h * 0.24], [w * 0.72, h * 0.32], [w * 0.68, h * 0.44], [w * 0.58, h * 0.44]]);
 
   ctx.strokeStyle = accent;
   ctx.lineWidth = Math.max(1.5, w * 0.01);
@@ -510,8 +701,16 @@ function drawCarLegendary(ctx, w, h, color, accent) {
   ctx.fillStyle = accent;
   ctx.fillRect(w * 0.88, h * 0.22, w * 0.04, h * 0.24);
   ctx.fillRect(w * 0.82, h * 0.2, w * 0.15, h * 0.035);
+  ctx.fillRect(w * 0.08, h * 0.64, w * 0.14, h * 0.026);
+  ctx.fillRect(w * 0.72, h * 0.64, w * 0.14, h * 0.026);
 
-  drawWheels(ctx, w, h, [w * 0.22, w * 0.8], w * 0.105);
+  drawMirror(ctx, w * 0.28, h * 0.36, w * 0.028, accent);
+  drawHeadlight(ctx, w * 0.94, h * 0.5, w * 0.036, true);
+  drawHeadlight(ctx, w * 0.89, h * 0.48, w * 0.022, true);
+  drawTaillight(ctx, w * 0.06, h * 0.5, w * 0.03, true);
+  if (isE) drawChargeBolt(ctx, w * 0.5, h * 0.32, w * 0.036, accent);
+
+  drawWheels(ctx, w, h, [w * 0.22, w * 0.8], w * 0.105, 8, accent, true, variant);
 }
 
 const CAR_DRAW_FN = {
@@ -526,7 +725,7 @@ function drawCarIcon(canvasEl, car) {
   const ctx = canvasEl.getContext("2d");
   const w = canvasEl.width, h = canvasEl.height;
   ctx.clearRect(0, 0, w, h);
-  CAR_DRAW_FN[car.rarity](ctx, w, h, car.color, car.accent);
+  CAR_DRAW_FN[car.rarity](ctx, w, h, car);
 }
 
 // ---------------------------------------------------------------------
@@ -877,7 +1076,7 @@ function animateRace(playerCar, opponentCar, playerWins, onDone) {
     ctx.save();
     ctx.translate(x, y - chh / 2);
     ctx.scale(facing, 1);
-    CAR_DRAW_FN[car.rarity](ctx, cw, chh, car.color, car.accent);
+    CAR_DRAW_FN[car.rarity](ctx, cw, chh, car);
     ctx.restore();
   }
 
