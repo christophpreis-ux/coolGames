@@ -8,31 +8,36 @@
    – deshalb muss man riskante Angebote auch mal ablehnen können.
    ========================================================================= */
 
-const RARITY_ORDER = ["common", "uncommon", "rare", "epic", "legendary"];
+const RARITY_ORDER = ["common", "uncommon", "rare", "epic", "legendary", "goettlich"];
 const RARITY_LABEL = {
   common: "Gewöhnlich", uncommon: "Ungewöhnlich", rare: "Selten",
-  epic: "Episch", legendary: "Legendär",
+  epic: "Episch", legendary: "Legendär", goettlich: "Göttlich",
 };
 
 const PACK_SIZE = 5;
 const STARTING_CREDITS = 300;
+const MAX_STAT = 140; // Göttliche Autos sprengen die alte 100er-Skala.
 
 // Booster-Sortiment: Auto- und Fähigkeiten-Booster, jeweils Level 1 und 2.
 // Level 2 kostet deutlich mehr, hat dafür stark verbesserte Seltenheits-Chancen.
-const LV1_ODDS = { common: 50, uncommon: 28, rare: 14, epic: 6, legendary: 2 };
-const LV2_ODDS = { common: 16, uncommon: 30, rare: 30, epic: 16, legendary: 8 };
+// Göttliche Autos gibt es NUR im Auto-Booster Lv. 2 (Fähigkeiten haben keine
+// göttliche Stufe, deshalb eigene Odds für die Fähigkeiten-Booster).
+const LV1_CAR_ODDS = { common: 50, uncommon: 28, rare: 14, epic: 6, legendary: 2, goettlich: 0 };
+const LV2_CAR_ODDS = { common: 15, uncommon: 28, rare: 29, epic: 16, legendary: 9, goettlich: 3 };
+const LV1_ABILITY_ODDS = { common: 50, uncommon: 28, rare: 14, epic: 6, legendary: 2 };
+const LV2_ABILITY_ODDS = { common: 16, uncommon: 30, rare: 30, epic: 16, legendary: 8 };
 const PACK_TYPES = {
-  auto1: { name: "Auto-Booster", level: 1, art: "📦", price: 150, pool: "cars", odds: LV1_ODDS, desc: "5 Auto-Karten" },
-  auto2: { name: "Auto-Booster", level: 2, art: "🏆", price: 450, pool: "cars", odds: LV2_ODDS, desc: "5 Auto-Karten, viel bessere Chancen auf seltene Autos" },
-  skill1: { name: "Fähigkeiten-Booster", level: 1, art: "🎴", price: 120, pool: "abilities", odds: LV1_ODDS, desc: "5 Fähigkeitskarten" },
-  skill2: { name: "Fähigkeiten-Booster", level: 2, art: "✨", price: 360, pool: "abilities", odds: LV2_ODDS, desc: "5 Fähigkeitskarten, viel bessere Chancen auf seltene Karten" },
+  auto1: { name: "Auto-Booster", level: 1, art: "📦", price: 150, pool: "cars", odds: LV1_CAR_ODDS, desc: "5 Auto-Karten" },
+  auto2: { name: "Auto-Booster", level: 2, art: "🏆", price: 450, pool: "cars", odds: LV2_CAR_ODDS, desc: "5 Auto-Karten, viel bessere Chancen – nur hier gibt es göttliche Autos!" },
+  skill1: { name: "Fähigkeiten-Booster", level: 1, art: "🎴", price: 120, pool: "abilities", odds: LV1_ABILITY_ODDS, desc: "5 Fähigkeitskarten" },
+  skill2: { name: "Fähigkeiten-Booster", level: 2, art: "✨", price: 360, pool: "abilities", odds: LV2_ABILITY_ODDS, desc: "5 Fähigkeitskarten, viel bessere Chancen auf seltene Karten" },
 };
 const CHEAPEST_PACK_PRICE = Math.min(...Object.values(PACK_TYPES).map((p) => p.price));
 
 // Gegner-Autos sind im Schnitt etwas herausfordernder verteilt als Booster.
-const OPPONENT_ODDS = { common: 35, uncommon: 30, rare: 20, epic: 10, legendary: 5 };
+const OPPONENT_ODDS = { common: 33, uncommon: 29, rare: 20, epic: 10, legendary: 6, goettlich: 2 };
 
-const REWARD_BY_RARITY = { common: 20, uncommon: 40, rare: 70, epic: 120, legendary: 200 };
+const REWARD_BY_RARITY = { common: 20, uncommon: 40, rare: 70, epic: 120, legendary: 200, goettlich: 400 };
 const BASE_STEAL_CHANCE = 0.08;
 
 // ---------------------------------------------------------------------
@@ -99,6 +104,14 @@ const CARS = [
   { id: "unendlichkeitsantrieb", name: "Unendlichkeitsantrieb", rarity: "legendary", speed: 92, accel: 88, handling: 92, color: "#60ffb0", accent: "#2acf80" },
   { id: "kosmosracer", name: "Kosmos-Racer", rarity: "legendary", speed: 90, accel: 92, handling: 90, color: "#7a5aff", accent: "#4f30d4" },
   { id: "apex_volt", name: "Apex Volt", rarity: "legendary", speed: 100, accel: 96, handling: 94, color: "#ffd43f", accent: "#d4a01f" },
+
+  // Göttlich – Stats jenseits der 100er-Skala, schweben statt zu rollen.
+  { id: "zeus_x", name: "Zeus-X", rarity: "goettlich", speed: 140, accel: 128, handling: 118, color: "#f8f4ff", accent: "#ffd75a" },
+  { id: "helios_prime", name: "Helios Prime", rarity: "goettlich", speed: 132, accel: 135, handling: 122, color: "#ffdf7a", accent: "#ff9a3c" },
+  { id: "chronos_omega", name: "Chronos Omega", rarity: "goettlich", speed: 128, accel: 122, handling: 138, color: "#b8f4ff", accent: "#7a5aff" },
+  { id: "walhalla_gt", name: "Walhalla GT", rarity: "goettlich", speed: 135, accel: 118, handling: 130, color: "#dfe8ff", accent: "#8fb8ff" },
+  { id: "nova_divina", name: "Nova Divina", rarity: "goettlich", speed: 130, accel: 140, handling: 120, color: "#ffb8f4", accent: "#ff5ae0" },
+  { id: "aether_unendlich", name: "Aether Unendlich", rarity: "goettlich", speed: 138, accel: 132, handling: 134, color: "#c8ffe8", accent: "#3fe0d4" },
 ];
 
 // Der Startwagen: extra schlecht, nicht Teil des 50er-Booster-Pools.
@@ -151,7 +164,8 @@ const ABILITIES = [
   { id: "jackpot", name: "Jackpot", rarity: "rare", desc: "+70% Belohnung bei Sieg", effects: { rewardMult: 1.70 } },
   { id: "vollkasko", name: "Vollkasko", rarity: "rare", desc: "50% Chance, Auto bei Niederlage zu behalten", effects: { keepCarChance: 0.50 } },
   { id: "kopfgeldjaeger1", name: "Kopfgeldjäger I", rarity: "rare", desc: "+30% Chance auf Gegner-Auto bei Sieg", effects: { stealChanceBonus: 0.30 } },
-  { id: "kurzteleport", name: "Kurz-Teleport", rarity: "rare", desc: "Teleportiert dich im Rennen ein Stück nach vorn (+25% Rennwurf)", effects: { teleport: 0.25 } },
+  { id: "kurzteleport", name: "Kurz-Teleport", rarity: "rare", desc: "Aktiv im Rennen: Teleport-Sprung ein Stück nach vorn", effects: { teleport: 0.25 } },
+  { id: "oelfalle", name: "Ölfalle", rarity: "rare", desc: "Aktiv im Rennen: Ölspur – der Gegner rutscht und wird stark gebremst", effects: { trap: 0.35 } },
 
   // Episch
   { id: "nitro2", name: "Nitro-Schub II", rarity: "epic", desc: "+40% Tempo", effects: { speedBoost: 0.40 } },
@@ -164,7 +178,8 @@ const ABILITIES = [
   { id: "vollversicherung", name: "Vollversicherung", rarity: "epic", desc: "75% Chance, Auto bei Niederlage zu behalten", effects: { keepCarChance: 0.75 } },
   { id: "kopfgeldjaeger2", name: "Kopfgeldjäger II", rarity: "epic", desc: "+55% Chance auf Gegner-Auto bei Sieg", effects: { stealChanceBonus: 0.55 } },
   { id: "doppelzug", name: "Doppelzug", rarity: "epic", desc: "Nach dem Rennen: 100 Bonus-Credits", effects: { bonusCreditsAlways: 100 } },
-  { id: "blitzteleport", name: "Blitz-Teleport", rarity: "epic", desc: "Großer Teleport-Sprung nach vorn (+45% Rennwurf)", effects: { teleport: 0.45 } },
+  { id: "blitzteleport", name: "Blitz-Teleport", rarity: "epic", desc: "Aktiv im Rennen: großer Teleport-Sprung nach vorn", effects: { teleport: 0.45 } },
+  { id: "geist", name: "Geist", rarity: "epic", desc: "Aktiv im Rennen: Geisterform – gegnerische Angriffe gehen durch dich hindurch", effects: { ghost: true } },
 
   // Legendär
   { id: "quantensprung_a", name: "Quantensprung", rarity: "legendary", desc: "+55% auf alle eigenen Werte", effects: { allBoost: 0.55 } },
@@ -177,7 +192,8 @@ const ABILITIES = [
   { id: "systemkollaps", name: "Systemkollaps", rarity: "legendary", desc: "Gegner-Werte halbiert (−50%)", effects: { oppAllDebuff: 0.50 } },
   { id: "meisterstratege", name: "Meisterstratege", rarity: "legendary", desc: "+35% eigene Werte, Gegner −20%", effects: { allBoost: 0.35, oppAllDebuff: 0.20 } },
   { id: "singularitaet", name: "Singularität", rarity: "legendary", desc: "Garantierter Sieg + garantiertes Gegner-Auto", effects: { guaranteedWin: true, stealChanceBonus: 1.0 } },
-  { id: "portalmeister", name: "Portal-Meister", rarity: "legendary", desc: "Riesiger Teleport-Sprung (+70% Rennwurf), und bei Niederlage teleportiert sich dein Auto sicher nach Hause", effects: { teleport: 0.7, keepCarChance: 1.0 } },
+  { id: "portalmeister", name: "Portal-Meister", rarity: "legendary", desc: "Aktiv im Rennen: riesiger Teleport-Sprung – und bei Niederlage teleportiert sich dein Auto sicher nach Hause", effects: { teleport: 0.7, keepCarChance: 1.0 } },
+  { id: "schockfalle", name: "Schockfalle", rarity: "legendary", desc: "Aktiv im Rennen: Elektrofalle – legt den Gegner kurz komplett lahm", effects: { trap: 0.65 } },
 ];
 
 const ABILITY_BY_ID = {};
@@ -294,6 +310,7 @@ const pickAbilityGrid = document.getElementById("pick-ability-grid");
 const btnAbilityDone = document.getElementById("btn-ability-done");
 const phaseRace = document.getElementById("phase-race");
 const raceCanvas = document.getElementById("race-canvas");
+const raceAbilityBar = document.getElementById("race-ability-bar");
 const phaseResult = document.getElementById("phase-result");
 const resultTitle = document.getElementById("result-title");
 const resultDetails = document.getElementById("result-details");
@@ -324,11 +341,13 @@ function closeModal(modalEl) { modalEl.classList.add("hidden"); }
 // Karten-Rendering (Auto- & Fähigkeitskarten als HTML + Canvas-Icon)
 // ---------------------------------------------------------------------
 
-function statBarRow(label, value) {
+function statBarRow(label, value, statClass) {
+  const pct = Math.min(100, (value / MAX_STAT) * 100);
   return `
     <div class="stat-bar-row">
       <span class="stat-bar-label">${label}</span>
-      <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${value}%"></div></div>
+      <div class="stat-bar-track"><div class="stat-bar-fill ${statClass || ""}" style="width:${pct}%"></div></div>
+      <span class="stat-bar-value">${value}</span>
     </div>
   `;
 }
@@ -349,9 +368,9 @@ function carCardHTML(car, opts) {
       <div class="card-rarity-tag">${RARITY_LABEL[car.rarity]}</div>
       ${opts.undiscovered ? "" : `
       <div class="stat-bars">
-        ${statBarRow("T", car.speed)}
-        ${statBarRow("B", car.accel)}
-        ${statBarRow("H", car.handling)}
+        ${statBarRow("T", car.speed, "stat-t")}
+        ${statBarRow("B", car.accel, "stat-b")}
+        ${statBarRow("H", car.handling, "stat-h")}
       </div>`}
     </div>
   `;
@@ -755,13 +774,175 @@ function drawCarLegendary(ctx, w, h, car) {
   drawWheels(ctx, w, h, [w * 0.22, w * 0.8], w * 0.105, 8, accent, true, variant);
 }
 
+function drawCarGoettlich(ctx, w, h, car) {
+  const color = car.color, accent = car.accent;
+  const gy = h * 0.8;
+  const hover = h * 0.08; // schwebt über dem Boden
+  const by = gy - hover;  // Unterkante der Karosserie
+
+  // Energiefeld unter dem schwebenden Wagen
+  ctx.save();
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.3;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, gy, w * 0.4, h * 0.05, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 0.5;
+  for (const px of [w * 0.24, w * 0.5, w * 0.76]) {
+    ctx.beginPath();
+    ctx.moveTo(px, by);
+    ctx.lineTo(px - w * 0.015, gy);
+    ctx.lineTo(px + w * 0.015, gy);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Extrem flache, gestreckte Karosserie mit Kanzel-Cockpit
+  ctx.save();
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = w * 0.06;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.04, by);
+  ctx.quadraticCurveTo(w * 0.06, by - h * 0.16, w * 0.24, by - h * 0.2);
+  ctx.lineTo(w * 0.42, by - h * 0.34);
+  ctx.quadraticCurveTo(w * 0.55, by - h * 0.42, w * 0.68, by - h * 0.32);
+  ctx.quadraticCurveTo(w * 0.88, by - h * 0.2, w * 0.97, by - h * 0.06);
+  ctx.lineTo(w * 0.96, by);
+  ctx.closePath();
+  ctx.fillStyle = bodyGradient(ctx, color, by - h * 0.44, by);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = shadeColor(color, -0.35);
+  ctx.lineWidth = Math.max(1, w * 0.006);
+  ctx.stroke();
+
+  // Kanzel (Glaskuppel)
+  drawWindowGlass(ctx, [
+    [w * 0.44, by - h * 0.33], [w * 0.56, by - h * 0.38],
+    [w * 0.66, by - h * 0.3], [w * 0.6, by - h * 0.2], [w * 0.46, by - h * 0.2],
+  ]);
+
+  // Energie-Ader längs der Flanke
+  ctx.save();
+  ctx.strokeStyle = accent;
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = w * 0.02;
+  ctx.lineWidth = Math.max(1.5, w * 0.012);
+  ctx.beginPath();
+  ctx.moveTo(w * 0.08, by - h * 0.1);
+  ctx.quadraticCurveTo(w * 0.5, by - h * 0.02, w * 0.92, by - h * 0.08);
+  ctx.stroke();
+  ctx.restore();
+
+  // Heckflosse + Lichter
+  ctx.fillStyle = accent;
+  ctx.fillRect(w * 0.06, by - h * 0.34, w * 0.03, h * 0.28);
+  drawHeadlight(ctx, w * 0.95, by - h * 0.08, w * 0.032, true);
+  drawTaillight(ctx, w * 0.05, by - h * 0.1, w * 0.028, true);
+}
+
 const CAR_BODY_FN = {
   common: drawCarCommon,
   uncommon: drawCarUncommon,
   rare: drawCarRare,
   epic: drawCarEpic,
   legendary: drawCarLegendary,
+  goettlich: drawCarGoettlich,
 };
+
+// ---- Heckansicht für die Ego-Perspektive im Rennen ----
+// Zeichnet ein Auto von hinten, zentriert um (0,0), Breite cw / Höhe ch.
+function drawCarRear(ctx, cw, ch, car) {
+  const rank = RARITY_ORDER.indexOf(car.rarity);
+  const color = car.color, accent = car.accent;
+  const divine = car.rarity === "goettlich";
+  const bodyBottom = divine ? ch * 0.34 : ch * 0.44;
+
+  ctx.save();
+  ctx.translate(-cw / 2, -ch / 2);
+
+  if (divine) {
+    // Schwebe-Energiefeld statt Rädern
+    ctx.save();
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.ellipse(cw * 0.5, ch * 0.9, cw * 0.42, ch * 0.08, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    // Hinterreifen links/rechts
+    ctx.fillStyle = "#14171b";
+    ctx.fillRect(cw * 0.02, ch * 0.55, cw * 0.16, ch * 0.4);
+    ctx.fillRect(cw * 0.82, ch * 0.55, cw * 0.16, ch * 0.4);
+    ctx.fillStyle = "#3a3f46";
+    ctx.fillRect(cw * 0.05, ch * 0.62, cw * 0.1, ch * 0.26);
+    ctx.fillRect(cw * 0.85, ch * 0.62, cw * 0.1, ch * 0.26);
+  }
+
+  // Karosserie (Heck), leicht trapezförmig, mit Verlaufsschattierung
+  ctx.save();
+  if (rank >= 4) { ctx.shadowColor = accent; ctx.shadowBlur = cw * 0.08; }
+  ctx.beginPath();
+  ctx.moveTo(cw * 0.08, ch * 0.92);
+  ctx.lineTo(cw * 0.1, bodyBottom);
+  ctx.quadraticCurveTo(cw * 0.5, bodyBottom - ch * 0.14, cw * 0.9, bodyBottom);
+  ctx.lineTo(cw * 0.92, ch * 0.92);
+  ctx.closePath();
+  ctx.fillStyle = bodyGradient(ctx, color, bodyBottom - ch * 0.14, ch * 0.92);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = shadeColor(color, -0.35);
+  ctx.lineWidth = Math.max(1, cw * 0.012);
+  ctx.stroke();
+
+  // Heckscheibe
+  ctx.save();
+  const g = ctx.createLinearGradient(0, bodyBottom - ch * 0.08, 0, bodyBottom + ch * 0.16);
+  g.addColorStop(0, "rgba(150,190,215,0.7)");
+  g.addColorStop(1, "rgba(28,42,58,0.85)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(cw * 0.24, bodyBottom + ch * 0.16);
+  ctx.lineTo(cw * 0.28, bodyBottom - ch * 0.02);
+  ctx.quadraticCurveTo(cw * 0.5, bodyBottom - ch * 0.1, cw * 0.72, bodyBottom - ch * 0.02);
+  ctx.lineTo(cw * 0.76, bodyBottom + ch * 0.16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Spoiler ab Episch
+  if (rank >= 3) {
+    ctx.fillStyle = accent;
+    ctx.fillRect(cw * 0.12, bodyBottom - ch * 0.16, cw * 0.045, ch * 0.14);
+    ctx.fillRect(cw * 0.835, bodyBottom - ch * 0.16, cw * 0.045, ch * 0.14);
+    ctx.fillRect(cw * 0.08, bodyBottom - ch * 0.2, cw * 0.84, ch * 0.06);
+  }
+
+  // Rücklichter (glühend)
+  ctx.save();
+  ctx.fillStyle = "#ff4040";
+  ctx.shadowColor = "#ff4040";
+  ctx.shadowBlur = cw * 0.06;
+  ctx.beginPath();
+  ctx.roundRect(cw * 0.13, ch * 0.56, cw * 0.2, ch * 0.09, 3);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.roundRect(cw * 0.67, ch * 0.56, cw * 0.2, ch * 0.09, 3);
+  ctx.fill();
+  ctx.restore();
+
+  // Kennzeichen
+  ctx.fillStyle = "#e8e8e0";
+  ctx.fillRect(cw * 0.41, ch * 0.68, cw * 0.18, ch * 0.1);
+  ctx.fillStyle = "#333";
+  ctx.font = `bold ${Math.max(4, ch * 0.075)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillText("VOLT", cw * 0.5, ch * 0.76);
+
+  ctx.restore();
+}
 
 // =========================================================================
 // FX-Engine: Jedes einzelne Auto (alle 50 + Rostlaube) hat einen eigenen,
@@ -1485,6 +1666,115 @@ const CAR_FX = {
     ctx.beginPath(); ctx.ellipse(x, y, w * 0.022, w * 0.007, -0.4, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   } },
+  // ---------------- Göttlich ----------------
+  zeus_x: { bg(e) { const { ctx, w, h, t } = e; // Gewitterwolke über dem Wagen
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = "#3a4258";
+    for (const [ox, r] of [[-0.1, 0.07], [0, 0.09], [0.1, 0.07]]) {
+      ctx.beginPath();
+      ctx.arc(w * (0.5 + ox), h * 0.08, w * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }, fg(e) { const { ctx, w, h, t } = e; // Zeus wirft Blitze
+    const ph = (t * 1.1) % 1, s = Math.floor(t * 1.1);
+    if (ph < 0.18) {
+      const tx = w * (0.3 + ((s * 173) % 40) / 100);
+      fxBolt(ctx, w * 0.5, h * 0.1, tx, h * 0.4, "#ffef9a", s, w * 0.035, 2.4);
+      fxTwinkle(ctx, tx, h * 0.42, w * 0.024, "#fff8d0", 1 - ph / 0.18);
+    }
+  } },
+  helios_prime: { bg(e) { const { ctx, w, h, t } = e; // lodernde Sonnenkorona
+    ctx.save();
+    ctx.translate(w * 0.5, h * 0.5);
+    ctx.rotate(t * 0.6);
+    ctx.strokeStyle = "rgba(255,170,60,0.55)";
+    ctx.lineWidth = Math.max(1.5, w * 0.012);
+    for (let i = 0; i < 12; i++) {
+      ctx.rotate(Math.PI / 6);
+      const flick = 1 + Math.sin(t * 5 + i) * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.34, 0);
+      ctx.lineTo(w * 0.42 * flick, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }, fg(e) { const { ctx, w, h, t } = e;
+    ctx.save();
+    const a = 0.2 + Math.sin(t * 3) * 0.1;
+    const g = ctx.createRadialGradient(w * 0.5, h * 0.5, w * 0.02, w * 0.5, h * 0.5, w * 0.45);
+    g.addColorStop(0, `rgba(255,200,90,${a})`);
+    g.addColorStop(1, "rgba(255,200,90,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  } },
+  chronos_omega: { bg(e) { // Zeit-Nachbilder in beide Richtungen
+    fxGhostBody(e, -e.w * 0.06, 0, 0.18);
+    fxGhostBody(e, e.w * 0.06, 0, 0.18);
+  }, fg(e) { const { ctx, w, h, t } = e; // tickende Zeit-Ringe
+    for (let i = 0; i < 2; i++) {
+      const p = (t * 0.4 + i / 2) % 1;
+      fxRing(ctx, w * 0.5, h * 0.5, w * 0.1 + p * w * 0.36, "#7a5aff", (1 - p) * 0.5, 1.6);
+    }
+    const a = Math.floor(t * 4) * (Math.PI / 6); // tickt in Schritten statt fließend
+    ctx.save();
+    ctx.strokeStyle = "#b8f4ff";
+    ctx.lineWidth = 1.6;
+    ctx.shadowColor = "#b8f4ff";
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.5, h * 0.5);
+    ctx.lineTo(w * 0.5 + Math.cos(a) * w * 0.09, h * 0.5 + Math.sin(a) * w * 0.09);
+    ctx.stroke();
+    ctx.restore();
+  } },
+  walhalla_gt: { fg(e) { const { ctx, w, h, t, car } = e; // aufsteigende leuchtende Runen
+    const runes = ["ᚠ", "ᚱ", "ᛟ", "ᛗ", "ᛞ"];
+    ctx.save();
+    ctx.textAlign = "center";
+    for (let i = 0; i < 4; i++) {
+      const p = (t * 0.3 + carRand(car, i)) % 1;
+      ctx.globalAlpha = Math.sin(Math.PI * p) * 0.9;
+      ctx.fillStyle = "#8fb8ff";
+      ctx.shadowColor = "#8fb8ff";
+      ctx.shadowBlur = 6;
+      ctx.font = `${Math.max(8, w * 0.05)}px serif`;
+      ctx.fillText(runes[i % runes.length], w * (0.2 + carRand(car, i + 4) * 0.6), h * 0.55 - p * h * 0.4);
+    }
+    ctx.restore();
+  } },
+  nova_divina: { fg(e) { const { ctx, w, h, t } = e; // Supernova-Pulse
+    const p = (t * 0.5) % 1;
+    ctx.save();
+    const g = ctx.createRadialGradient(w * 0.5, h * 0.5, w * 0.01, w * 0.5, h * 0.5, w * 0.06 + p * w * 0.44);
+    g.addColorStop(0, `rgba(255,90,224,${(1 - p) * 0.35})`);
+    g.addColorStop(0.7, `rgba(255,184,244,${(1 - p) * 0.18})`);
+    g.addColorStop(1, "rgba(255,184,244,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+    fxRing(ctx, w * 0.5, h * 0.5, w * 0.06 + p * w * 0.44, "#ff5ae0", (1 - p) * 0.7, 2);
+    fxTwinkle(ctx, w * 0.5, h * 0.32, w * 0.02, "#ffd0f4", 0.5 + Math.sin(t * 6) * 0.4);
+  } },
+  aether_unendlich: { bg(e) { const { ctx, w, h, t } = e; // schimmernde Aurora-Bänder
+    ctx.save();
+    for (let b = 0; b < 3; b++) {
+      const hue = 150 + b * 40 + Math.sin(t * 0.8 + b) * 20;
+      ctx.strokeStyle = `hsla(${hue},90%,65%,0.4)`;
+      ctx.lineWidth = Math.max(2, h * 0.05);
+      ctx.beginPath();
+      for (let s = 0; s <= 10; s++) {
+        const x = w * (s / 10);
+        const y = h * (0.18 + b * 0.08) + Math.sin(s * 0.9 + t * (1.2 + b * 0.3)) * h * 0.05;
+        s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  } },
+
   apex_volt: { fg(e) { const { ctx, w, h, t } = e; // die Blitzkrone des Champions
     const cx = w * 0.52, cy = h * 0.1;
     ctx.save();
@@ -1507,8 +1797,8 @@ const CAR_FX = {
   } },
 };
 
-const GROUND_Y = { common: 0.78, uncommon: 0.78, rare: 0.78, epic: 0.8, legendary: 0.82 };
-const SHADOW_SPREAD = { common: 0.4, uncommon: 0.42, rare: 0.44, epic: 0.46, legendary: 0.5 };
+const GROUND_Y = { common: 0.78, uncommon: 0.78, rare: 0.78, epic: 0.8, legendary: 0.82, goettlich: 0.8 };
+const SHADOW_SPREAD = { common: 0.4, uncommon: 0.42, rare: 0.44, epic: 0.46, legendary: 0.5, goettlich: 0.52 };
 
 function renderCar(ctx, w, h, car, t) {
   const fx = CAR_FX[car.id] || {};
@@ -1821,46 +2111,588 @@ function carScore(car, speedMul, accelMul, handlingMul) {
   return speed * 0.45 + accel * 0.3 + handling * 0.25;
 }
 
-function resolveRace(playerCar, opponentCar, effects) {
-  const playerBase = carScore(
-    playerCar,
-    effects.speedBoost + effects.allBoost,
-    effects.accelBoost + effects.allBoost,
-    effects.handlingBoost + effects.allBoost
-  );
-  const opponentBase = carScore(
-    opponentCar,
-    -effects.oppSpeedDebuff - effects.oppAllDebuff,
-    -effects.oppAccelDebuff - effects.oppAllDebuff,
-    -effects.oppHandlingDebuff - effects.oppAllDebuff
-  );
+// ---------------------------------------------------------------------
+// Rennen: Live-Simulation aus der Ego-/Verfolgerperspektive.
+// Beide Autos fahren von allein; die Geschwindigkeit kommt direkt aus den
+// Stats (doppelter Score = fast doppelt so schnell – der Unterschied ist
+// wirklich spürbar). Aktive Fähigkeiten (Nitro, Teleport, Fallen, Geist …)
+// liegen während des Rennens als Buttons unter der Strecke und werden erst
+// beim Drücken gezündet. Gegner können angreifen – außer man ist ein Geist.
+// ---------------------------------------------------------------------
 
-  const rollRange = 1 - effects.luckFloor;
-  // Ein Teleport wirkt als direkter Sprung nach vorn auf den Rennwurf.
-  const playerRoll = playerBase * (effects.luckFloor + Math.random() * rollRange + 0.15) * (1 + effects.teleport);
-  const opponentRoll = opponentBase * (0.85 + Math.random() * 0.3);
+const RACE_LENGTH = 800; // Meter – deutlich längere Strecke
+const RACE_VIEW_DIST = 240; // wie weit die Kamera nach vorn schaut (m)
 
-  const playerWins = effects.guaranteedWin || playerRoll >= opponentRoll;
-  return { playerWins, playerBase, opponentBase, playerRoll, opponentRoll };
+// Welche Effekt-Felder machen eine Karte im Rennen "aktiv" (Button)?
+const ACTIVE_EFFECT_KEYS = [
+  "speedBoost", "accelBoost", "handlingBoost", "allBoost",
+  "oppSpeedDebuff", "oppAccelDebuff", "oppHandlingDebuff", "oppAllDebuff",
+  "teleport", "trap", "ghost",
+];
+
+function isActiveAbility(ab) {
+  return ACTIVE_EFFECT_KEYS.some((k) => ab.effects[k]);
+}
+
+function abilityEmoji(ab) {
+  const fx = ab.effects;
+  if (fx.ghost) return "👻";
+  if (fx.trap) return "🛢️";
+  if (fx.teleport) return "🌀";
+  if (fx.oppSpeedDebuff || fx.oppAccelDebuff || fx.oppHandlingDebuff || fx.oppAllDebuff) return "💥";
+  if (fx.speedBoost || fx.allBoost) return "🔥";
+  if (fx.accelBoost) return "⚡";
+  if (fx.handlingBoost) return "🌀";
+  return "✨";
+}
+
+function topSpeedFromScore(score) {
+  return 45 + score * 0.85; // m/s – Rostlaube ~200 km/h, Göttlich ~550 km/h
+}
+
+let raceRuntime = null;
+
+function renderRaceAbilityBar() {
+  const parts = raceSelection.abilityIds.map((id) => {
+    const ab = ABILITY_BY_ID[id];
+    if (isActiveAbility(ab)) {
+      return `<button class="race-ability-btn" data-race-ability="${id}" disabled>
+        <span class="race-ability-emoji">${abilityEmoji(ab)}</span>${ab.name}
+      </button>`;
+    }
+    return `<div class="race-passive-chip">🎗 ${ab.name} <span>passiv</span></div>`;
+  });
+  raceAbilityBar.innerHTML = parts.join("") || `<div class="race-passive-chip">Keine Fähigkeiten dabei</div>`;
+}
+
+raceAbilityBar.addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".race-ability-btn");
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add("race-ability-used");
+  activateRaceAbility(btn.dataset.raceAbility);
+});
+
+function activateRaceAbility(id) {
+  const rt = raceRuntime;
+  if (!rt || rt.done || !rt.running) return;
+  const fx = ABILITY_BY_ID[id].effects;
+  const now = performance.now();
+  rt.activatedIds.push(id);
+
+  const boost = (fx.speedBoost || 0) * 0.9 + (fx.allBoost || 0) * 0.9 +
+    (fx.accelBoost || 0) * 0.5 + (fx.handlingBoost || 0) * 0.35;
+  if (boost > 0) {
+    rt.player.boostMult *= 1 + boost;
+    rt.player.v *= 1 + (fx.accelBoost || 0) * 0.3;
+    rt.nitroUntil = now + 1600;
+    rt.msgs.push({ text: `🔥 ${ABILITY_BY_ID[id].name}!`, until: now + 1500, color: "#ffb84a" });
+  }
+
+  const debuff = (fx.oppSpeedDebuff || 0) + (fx.oppAccelDebuff || 0) +
+    (fx.oppHandlingDebuff || 0) + (fx.oppAllDebuff || 0) * 1.6;
+  if (debuff > 0) {
+    rt.opp.slowUntil = now + 2600;
+    rt.opp.slowFactor = 1 - Math.min(0.8, debuff * 0.9);
+    rt.opp.hitFlashUntil = now + 700;
+    rt.msgs.push({ text: `💥 ${ABILITY_BY_ID[id].name} trifft den Gegner!`, until: now + 1500, color: "#ff7a5a" });
+  }
+
+  if (fx.trap) {
+    rt.opp.slowUntil = now + 3200;
+    rt.opp.slowFactor = 1 - Math.min(0.9, fx.trap);
+    rt.opp.skidUntil = now + 3200;
+    rt.oilAtDist = rt.opp.dist + 4;
+    rt.oilUntil = now + 3500;
+    rt.msgs.push({ text: `🛢️ ${ABILITY_BY_ID[id].name}! Der Gegner rutscht!`, until: now + 1800, color: "#ffd75a" });
+  }
+
+  if (fx.teleport) {
+    rt.player.dist += fx.teleport * 120;
+    rt.teleportFlashUntil = now + 700;
+    rt.msgs.push({ text: `🌀 Teleport!`, until: now + 1400, color: "#b8a0ff" });
+  }
+
+  if (fx.ghost) {
+    rt.ghost = true;
+    rt.msgs.push({ text: `👻 Geisterform aktiv – unverwundbar!`, until: now + 1800, color: "#c8e8ff" });
+  }
 }
 
 function runRace() {
   const playerCar = CAR_BY_ID[raceSelection.carId];
-  const opponentCar = currentOffer.car;
-  const effects = combineEffects(raceSelection.abilityIds);
-  const outcome = resolveRace(playerCar, opponentCar, effects);
+  const oppCar = currentOffer.car;
 
-  animateRace(playerCar, opponentCar, outcome.playerWins, effects.teleport > 0, () => {
-    applyRaceOutcome(playerCar, opponentCar, effects, outcome);
+  const passiveIds = raceSelection.abilityIds.filter((id) => !isActiveAbility(ABILITY_BY_ID[id]));
+  const pFx = combineEffects(passiveIds);
+
+  // Zufalls-Streuung: Glücksbringer (luckFloor) nimmt das Pech raus.
+  const playerNoise = pFx.luckFloor >= 1 ? 1 + Math.random() * 0.05 : 0.93 + Math.random() * 0.14;
+  const oppNoise = 0.93 + Math.random() * 0.14;
+
+  const playerTop = topSpeedFromScore(carScore(playerCar, 0, 0, 0)) * playerNoise;
+  let oppTop = topSpeedFromScore(carScore(oppCar, 0, 0, 0)) * oppNoise;
+  if (pFx.guaranteedWin) oppTop = Math.min(oppTop, playerTop * 0.8);
+
+  // Gegner-Angriffe: je seltener das Gegner-Auto, desto angriffslustiger.
+  const aggr = { common: 0.25, uncommon: 0.35, rare: 0.5, epic: 0.65, legendary: 0.8, goettlich: 0.95 }[oppCar.rarity] || 0.3;
+  const attacks = [];
+  if (Math.random() < aggr) attacks.push(2000 + Math.random() * 3000);
+  if (Math.random() < aggr * 0.5) attacks.push(5500 + Math.random() * 3000);
+
+  raceRuntime = {
+    playerCar, oppCar, passiveIds,
+    activatedIds: [], consumedIds: [],
+    pFx,
+    player: { dist: 0, v: 0, top: playerTop, accel: playerCar.accel, handling: playerCar.handling, boostMult: 1, slowUntil: 0, slowFactor: 1 },
+    opp: { dist: 0, v: 0, top: oppTop, accel: oppCar.accel, handling: oppCar.handling, boostMult: 1, slowUntil: 0, slowFactor: 1, hitFlashUntil: 0, skidUntil: 0 },
+    ghost: false,
+    attacks,
+    msgs: [],
+    nitroUntil: 0, teleportFlashUntil: 0, attackFlashUntil: 0, blockedFlashUntil: 0,
+    oilAtDist: -1, oilUntil: 0,
+    startTime: performance.now(),
+    countdownMs: 1800,
+    running: false, done: false, finishAt: 0, outcome: null,
+    lastFrame: performance.now(),
+  };
+
+  renderRaceAbilityBar();
+  requestAnimationFrame(egoRaceFrame);
+}
+
+function raceCurveK(dist) {
+  // Sanfte, wechselnde Kurven – macht die Strecke lebendig.
+  return Math.sin(dist / 170) * 0.55 + Math.sin(dist / 63) * 0.18;
+}
+
+function simRacer(r, dt, now) {
+  const slowed = now < r.slowUntil ? r.slowFactor : 1;
+  const curve = Math.abs(raceCurveK(r.dist));
+  const curveSlow = 1 - curve * 0.16 * (1 - Math.min(1, r.handling / 190));
+  const targetV = r.top * r.boostMult * slowed * curveSlow;
+  const approach = Math.min(1, dt * (1.1 + r.accel / 55)); // Beschleunigung wirkt spürbar
+  r.v += (targetV - r.v) * approach;
+  r.dist += r.v * dt;
+}
+
+function finishRace(now) {
+  const rt = raceRuntime;
+  rt.done = true;
+  rt.running = false;
+  const playerWins = rt.player.dist >= RACE_LENGTH && (rt.opp.dist < RACE_LENGTH || rt.player.dist >= rt.opp.dist);
+  const marginM = Math.abs(rt.player.dist - rt.opp.dist);
+  rt.consumedIds = rt.passiveIds.concat(rt.activatedIds);
+  rt.outcome = { playerWins, marginM };
+  rt.finishAt = now;
+  // Buttons deaktivieren
+  raceAbilityBar.querySelectorAll(".race-ability-btn").forEach((b) => { b.disabled = true; });
+  setTimeout(() => {
+    const effectsFinal = combineEffects(rt.consumedIds);
+    applyRaceOutcome(rt.playerCar, rt.oppCar, effectsFinal, rt.outcome);
+  }, 1100);
+}
+
+function egoRaceFrame(now) {
+  const rt = raceRuntime;
+  if (!rt) return;
+  const dt = Math.min(0.05, (now - rt.lastFrame) / 1000);
+  rt.lastFrame = now;
+  const sinceStart = now - rt.startTime;
+
+  if (!rt.running && !rt.done && sinceStart >= rt.countdownMs) {
+    rt.running = true;
+    raceAbilityBar.querySelectorAll(".race-ability-btn:not(.race-ability-used)").forEach((b) => { b.disabled = false; });
+  }
+
+  if (rt.running && !rt.done) {
+    simRacer(rt.player, dt, now);
+    simRacer(rt.opp, dt, now);
+
+    // Geplante Gegner-Angriffe
+    for (let i = rt.attacks.length - 1; i >= 0; i--) {
+      if (sinceStart - rt.countdownMs >= rt.attacks[i]) {
+        rt.attacks.splice(i, 1);
+        if (rt.ghost) {
+          rt.blockedFlashUntil = now + 900;
+          rt.msgs.push({ text: "👻 Angriff geht durch dich hindurch!", until: now + 1600, color: "#c8e8ff" });
+        } else {
+          rt.player.slowUntil = now + 2000;
+          rt.player.slowFactor = 0.72;
+          rt.attackFlashUntil = now + 700;
+          rt.msgs.push({ text: "⚡ Der Gegner greift an!", until: now + 1600, color: "#ff6a6a" });
+        }
+      }
+    }
+
+    if (rt.player.dist >= RACE_LENGTH || rt.opp.dist >= RACE_LENGTH) {
+      finishRace(now);
+    }
+  }
+
+  drawEgoRace(now, sinceStart);
+
+  if (!rt.done || now - rt.finishAt < 1100) {
+    requestAnimationFrame(egoRaceFrame);
+  }
+}
+
+// ---- Pseudo-3D-Zeichnung der Ego-Perspektive ----
+
+function drawEgoRace(now, sinceStart) {
+  const rt = raceRuntime;
+  const ctx = raceCanvas.getContext("2d");
+  const w = raceCanvas.width, h = raceCanvas.height;
+  const horizon = h * 0.4;
+  const focal = 14; // Meter bis "Kamera-Nähe"
+  const pDist = rt.player.dist;
+  const curveHere = raceCurveK(pDist);
+
+  function proj(z) {
+    const s = focal / (focal + z);
+    return { s, y: horizon + (h - horizon) * s };
+  }
+  // Seitliche Verschiebung der Straße durch Kurven (wächst mit der Entfernung).
+  function curveShift(z) {
+    return raceCurveK(pDist + z) * z * z * 0.055;
+  }
+  function roadX(z, lateralM) {
+    const { s } = proj(z);
+    return w / 2 + curveShift(z) * s + lateralM * s * (w / 22);
+  }
+
+  // --- Himmel: Abenddämmerung mit Sonne und Wolken ---
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon);
+  sky.addColorStop(0, "#131b33");
+  sky.addColorStop(0.55, "#3a3a63");
+  sky.addColorStop(1, "#c86a4a");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, horizon);
+
+  const sunX = w * 0.5 - curveHere * w * 0.18;
+  ctx.save();
+  const sunG = ctx.createRadialGradient(sunX, horizon - h * 0.03, 2, sunX, horizon - h * 0.03, w * 0.09);
+  sunG.addColorStop(0, "rgba(255,214,140,0.95)");
+  sunG.addColorStop(1, "rgba(255,150,80,0)");
+  ctx.fillStyle = sunG;
+  ctx.fillRect(sunX - w * 0.1, horizon - h * 0.16, w * 0.2, h * 0.16);
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = "rgba(220,200,220,0.14)";
+  for (let i = 0; i < 4; i++) {
+    const cx = ((i * 263 + now * 0.004) % (w + 200)) - 100;
+    ctx.beginPath();
+    ctx.ellipse(cx, horizon * (0.25 + (i % 3) * 0.18), w * 0.07, h * 0.02, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // --- Berge (zwei Parallax-Ebenen) ---
+  for (const [layerK, color, amp] of [[0.008, "#1c2438", 0.1], [0.02, "#252c44", 0.06]]) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, horizon);
+    for (let x = 0; x <= w; x += 24) {
+      const ridge = Math.sin((x + pDist * layerK * 60) * 0.011) + Math.sin((x + pDist * layerK * 60) * 0.027) * 0.5;
+      ctx.lineTo(x, horizon - Math.abs(ridge) * h * amp - 2);
+    }
+    ctx.lineTo(w, horizon);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // --- Boden ---
+  const ground = ctx.createLinearGradient(0, horizon, 0, h);
+  ground.addColorStop(0, "#232e22");
+  ground.addColorStop(1, "#161d14");
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, horizon, w, h - horizon);
+
+  // --- Straße in Tiefen-Scheiben ---
+  const SLICES = 30;
+  const ROAD_HALF = 8; // Meter halbe Straßenbreite
+  for (let i = SLICES - 1; i >= 0; i--) {
+    const z1 = (i / SLICES) * RACE_VIEW_DIST;
+    const z2 = ((i + 1) / SLICES) * RACE_VIEW_DIST;
+    const p1 = proj(z1), p2 = proj(z2);
+    const seg = Math.floor((pDist + z1) / 9) % 2 === 0;
+
+    // Asphalt
+    ctx.fillStyle = seg ? "#33383f" : "#2e333a";
+    ctx.beginPath();
+    ctx.moveTo(roadX(z1, -ROAD_HALF), p1.y);
+    ctx.lineTo(roadX(z1, ROAD_HALF), p1.y);
+    ctx.lineTo(roadX(z2, ROAD_HALF), p2.y);
+    ctx.lineTo(roadX(z2, -ROAD_HALF), p2.y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Randstreifen (rot-weiß) + Mittellinie
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = seg ? "#c8cdd4" : "#c44a3f";
+      ctx.beginPath();
+      ctx.moveTo(roadX(z1, side * ROAD_HALF), p1.y);
+      ctx.lineTo(roadX(z1, side * (ROAD_HALF + 0.9)), p1.y);
+      ctx.lineTo(roadX(z2, side * (ROAD_HALF + 0.9)), p2.y);
+      ctx.lineTo(roadX(z2, side * ROAD_HALF), p2.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (seg) {
+      ctx.fillStyle = "rgba(240,240,235,0.85)";
+      ctx.beginPath();
+      ctx.moveTo(roadX(z1, -0.25), p1.y);
+      ctx.lineTo(roadX(z1, 0.25), p1.y);
+      ctx.lineTo(roadX(z2, 0.25), p2.y);
+      ctx.lineTo(roadX(z2, -0.25), p2.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // --- Leitplanken-Pfosten & Bäume am Straßenrand ---
+  for (let z = 6; z < RACE_VIEW_DIST; z += 14) {
+    const worldZ = Math.ceil((pDist + z) / 14) * 14 - pDist;
+    if (worldZ < 1 || worldZ > RACE_VIEW_DIST) continue;
+    const { s, y } = proj(worldZ);
+    for (const side of [-1, 1]) {
+      const x = roadX(worldZ, side * (ROAD_HALF + 1.6));
+      ctx.fillStyle = "#8a929c";
+      ctx.fillRect(x - 1.5 * s, y - 14 * s, 3 * s, 14 * s);
+      ctx.fillStyle = side === -1 ? "#ffb84a" : "#ff6a5a";
+      ctx.fillRect(x - 2 * s, y - 14 * s, 4 * s, 3.5 * s);
+    }
+  }
+  for (let z = 10; z < RACE_VIEW_DIST; z += 34) {
+    const worldZ = Math.ceil((pDist + z) / 34) * 34 - pDist;
+    if (worldZ < 2 || worldZ > RACE_VIEW_DIST) continue;
+    const { s, y } = proj(worldZ);
+    const side = Math.floor((pDist + worldZ) / 34) % 2 === 0 ? -1 : 1;
+    const x = roadX(worldZ, side * (ROAD_HALF + 5));
+    ctx.fillStyle = "#3a2c20";
+    ctx.fillRect(x - 2 * s, y - 26 * s, 4 * s, 26 * s);
+    ctx.fillStyle = "#22422a";
+    ctx.beginPath();
+    ctx.moveTo(x, y - 62 * s);
+    ctx.lineTo(x - 16 * s, y - 22 * s);
+    ctx.lineTo(x + 16 * s, y - 22 * s);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // --- Ölfleck der Falle ---
+  if (now < rt.oilUntil && rt.oilAtDist > 0) {
+    const oz = rt.oilAtDist - pDist;
+    if (oz > 1 && oz < RACE_VIEW_DIST) {
+      const { s, y } = proj(oz);
+      ctx.save();
+      ctx.fillStyle = "rgba(20,16,28,0.8)";
+      ctx.beginPath();
+      ctx.ellipse(roadX(oz, -3.4), y, 36 * s, 9 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // --- Ziel-Bogen ---
+  const finishZ = RACE_LENGTH - pDist;
+  if (finishZ > 0 && finishZ < RACE_VIEW_DIST) {
+    const { s, y } = proj(finishZ);
+    const xl = roadX(finishZ, -ROAD_HALF - 1), xr = roadX(finishZ, ROAD_HALF + 1);
+    ctx.fillStyle = "#d8dde4";
+    ctx.fillRect(xl - 3 * s, y - 80 * s, 6 * s, 80 * s);
+    ctx.fillRect(xr - 3 * s, y - 80 * s, 6 * s, 80 * s);
+    const bannerH = 18 * s;
+    for (let cx = 0; cx < 8; cx++) {
+      for (let cy = 0; cy < 2; cy++) {
+        ctx.fillStyle = (cx + cy) % 2 === 0 ? "#f4f6f8" : "#14171b";
+        ctx.fillRect(xl + ((xr - xl) / 8) * cx, y - 80 * s + cy * bannerH / 2, (xr - xl) / 8 + 1, bannerH / 2);
+      }
+    }
+  }
+
+  // --- Gegner-Auto (wenn vor uns sichtbar) ---
+  const delta = rt.opp.dist - rt.player.dist;
+  if (delta > -6) {
+    const oz = Math.max(0.8, Math.min(delta + 7, RACE_VIEW_DIST));
+    const { s, y } = proj(oz);
+    const skid = now < rt.opp.skidUntil ? Math.sin(now / 55) * 8 * s : 0;
+    const ocw = 150 * s, och = 96 * s;
+    ctx.save();
+    ctx.translate(roadX(oz, -3.4) + skid, y - och * 0.45);
+    if (now < rt.opp.hitFlashUntil) {
+      ctx.globalAlpha = 0.55 + Math.sin(now / 40) * 0.3;
+    }
+    drawCarRear(ctx, ocw, och, rt.oppCar);
+    ctx.restore();
+    if (now < rt.opp.hitFlashUntil) {
+      fxBolt(ctx, roadX(oz, -3.4) - 30 * s, y - och, roadX(oz, -3.4) + 20 * s, y - och * 0.4, "#ffd75a", Math.floor(now / 60), 8 * s, 2);
+    }
+  }
+
+  // --- Spielerauto (Heckansicht, unten) ---
+  const sway = curveHere * -26 + Math.sin(now / 120) * 2.5;
+  const pcw = 190, pch = 120;
+  const px = w * 0.5 + w * 0.155 + sway, py = h * 0.86;
+  ctx.save();
+  if (rt.ghost) {
+    ctx.globalAlpha = 0.5;
+    ctx.shadowColor = "#c8e8ff";
+    ctx.shadowBlur = 24;
+  }
+  ctx.translate(px, py);
+  drawCarRear(ctx, pcw, pch, rt.playerCar);
+  ctx.restore();
+
+  // Nitro-Flammen hinterm Spielerauto
+  if (now < rt.nitroUntil) {
+    const f = 0.7 + Math.sin(now / 28) * 0.3;
+    for (const ox of [-pcw * 0.3, pcw * 0.3]) {
+      ctx.save();
+      ctx.translate(px + ox, py + pch * 0.42);
+      ctx.fillStyle = "#4fa0ff";
+      ctx.beginPath();
+      ctx.moveTo(-9, 0); ctx.lineTo(9, 0); ctx.lineTo(0, 34 * f);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#d0ecff";
+      ctx.beginPath();
+      ctx.moveTo(-4.5, 0); ctx.lineTo(4.5, 0); ctx.lineTo(0, 20 * f);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+  // Teleport-Portal um den Spieler
+  if (now < rt.teleportFlashUntil) {
+    const k = (rt.teleportFlashUntil - now) / 700;
+    fxRing(ctx, px, py, 30 + (1 - k) * 90, "#7a5aff", k, 5);
+    fxRing(ctx, px, py, 16 + (1 - k) * 60, "#3fe0d4", k * 0.8, 3);
+  }
+  // Geist blockt Angriff
+  if (now < rt.blockedFlashUntil) {
+    const k = (rt.blockedFlashUntil - now) / 900;
+    ctx.save();
+    ctx.globalAlpha = k * 0.8;
+    ctx.font = `bold ${h * 0.06}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#c8e8ff";
+    ctx.fillText("👻", px, py - pch * 0.75);
+    ctx.restore();
+  }
+  // Angriff: roter Blitz + Vignette
+  if (now < rt.attackFlashUntil) {
+    const k = (rt.attackFlashUntil - now) / 700;
+    fxBolt(ctx, w * 0.35, horizon * 0.6, px - 20, py - pch * 0.3, "#ff5a5a", Math.floor(now / 50), 22, 3);
+    ctx.save();
+    ctx.globalAlpha = k * 0.3;
+    ctx.fillStyle = "#ff3a3a";
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  // --- HUD ---
+  ctx.save();
+  // Tacho
+  ctx.fillStyle = "rgba(10,12,18,0.55)";
+  ctx.beginPath();
+  ctx.roundRect(14, 12, 176, 54, 10);
+  ctx.fill();
+  ctx.fillStyle = "#f4f6f8";
+  ctx.font = `bold ${h * 0.062}px sans-serif`;
+  ctx.textAlign = "left";
+  ctx.fillText(`${Math.round(rt.player.v * 3.6)}`, 26, 52);
+  ctx.font = `${h * 0.03}px sans-serif`;
+  ctx.fillStyle = "#a9b2bc";
+  ctx.fillText("km/h", 118, 52);
+
+  // Fortschrittsbalken oben
+  const barX = w * 0.3, barW = w * 0.4, barY = 22;
+  ctx.fillStyle = "rgba(10,12,18,0.55)";
+  ctx.beginPath();
+  ctx.roundRect(barX - 8, barY - 8, barW + 16, 22, 8);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(barX, barY + 3);
+  ctx.lineTo(barX + barW, barY + 3);
+  ctx.stroke();
+  ctx.fillStyle = "#f4f6f8";
+  ctx.fillRect(barX + barW - 1.5, barY - 4, 3, 14); // Ziel
+  const pMark = barX + Math.min(1, rt.player.dist / RACE_LENGTH) * barW;
+  const oMark = barX + Math.min(1, rt.opp.dist / RACE_LENGTH) * barW;
+  ctx.fillStyle = "#ff6a5a";
+  ctx.beginPath(); ctx.arc(oMark, barY + 3, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#3fe0d4";
+  ctx.beginPath(); ctx.arc(pMark, barY + 3, 7, 0, Math.PI * 2); ctx.fill();
+
+  // Rückstand/Vorsprung
+  ctx.font = `bold ${h * 0.036}px sans-serif`;
+  ctx.textAlign = "right";
+  const gap = rt.opp.dist - rt.player.dist;
+  ctx.fillStyle = gap > 0 ? "#ff8a7a" : "#7dffc0";
+  ctx.fillText(gap > 0 ? `−${Math.round(gap)} m` : `+${Math.round(-gap)} m`, w - 18, 46);
+  ctx.restore();
+
+  // Meldungen (Fähigkeiten, Angriffe)
+  rt.msgs = rt.msgs.filter((m) => now < m.until);
+  ctx.save();
+  ctx.textAlign = "center";
+  rt.msgs.forEach((m, i) => {
+    const k = Math.min(1, (m.until - now) / 400);
+    ctx.globalAlpha = k;
+    ctx.font = `bold ${h * 0.045}px sans-serif`;
+    ctx.fillStyle = m.color;
+    ctx.fillText(m.text, w / 2, h * 0.56 + i * h * 0.055);
   });
+  ctx.restore();
+
+  // Countdown / Ziel-Banner
+  if (sinceStart < rt.countdownMs) {
+    const n = Math.ceil((rt.countdownMs - sinceStart) / 600);
+    ctx.save();
+    ctx.fillStyle = "rgba(8,10,14,0.45)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#f4f6f8";
+    ctx.font = `bold ${h * 0.24}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(String(n), w / 2, h * 0.55);
+    ctx.font = `${h * 0.045}px sans-serif`;
+    ctx.fillStyle = "#a9b2bc";
+    ctx.fillText(`${RACE_LENGTH} m · Wer zuerst im Ziel ist, gewinnt`, w / 2, h * 0.66);
+    ctx.restore();
+  } else if (sinceStart < rt.countdownMs + 700 && !rt.done) {
+    ctx.save();
+    ctx.fillStyle = "#7dffc0";
+    ctx.font = `bold ${h * 0.16}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.globalAlpha = 1 - (sinceStart - rt.countdownMs) / 700;
+    ctx.fillText("LOS!", w / 2, h * 0.55);
+    ctx.restore();
+  }
+
+  if (rt.done && rt.outcome) {
+    ctx.save();
+    ctx.fillStyle = "rgba(8,10,14,0.5)";
+    ctx.fillRect(0, h * 0.36, w, h * 0.26);
+    ctx.font = `bold ${h * 0.11}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = rt.outcome.playerWins ? "#7dffc0" : "#ff8a7a";
+    ctx.fillText(rt.outcome.playerWins ? "🏁 ZIEL – GEWONNEN!" : "🏁 Der Gegner ist im Ziel …", w / 2, h * 0.53);
+    ctx.restore();
+  }
 }
 
 function applyRaceOutcome(playerCar, opponentCar, effects, outcome) {
-  // Verbrauchte Fähigkeitskarten entfernen (je 1 Exemplar pro genutzter Art).
-  for (const id of raceSelection.abilityIds) {
+  // Nur wirklich benutzte Karten verbrauchen: passive zählen immer,
+  // aktive nur, wenn ihr Button gedrückt wurde. Nicht gezündete aktive
+  // Karten wandern zurück ins Inventar.
+  const consumed = raceRuntime ? raceRuntime.consumedIds : raceSelection.abilityIds;
+  for (const id of consumed) {
     const idx = ownedAbilities.indexOf(id);
     if (idx >= 0) ownedAbilities.splice(idx, 1);
   }
+  const unused = raceSelection.abilityIds.filter((id) => !consumed.includes(id));
 
   let creditsGained = 0;
   let carLost = false;
@@ -1892,6 +2724,11 @@ function applyRaceOutcome(playerCar, opponentCar, effects, outcome) {
 
   const lines = [];
   lines.push(`${playerCar.name} vs. ${opponentCar.name}`);
+  if (outcome.marginM != null) {
+    lines.push(outcome.playerWins
+      ? `Vorsprung im Ziel: ${Math.round(outcome.marginM)} m`
+      : `Rückstand im Ziel: ${Math.round(outcome.marginM)} m`);
+  }
   if (outcome.playerWins) {
     lines.push(`+${creditsGained} Credits`);
     if (carStolen) lines.push(`Bonus: Du hast das ${opponentCar.name} des Gegners erbeutet!`);
@@ -1900,136 +2737,15 @@ function applyRaceOutcome(playerCar, opponentCar, effects, outcome) {
     else lines.push(`Eine Fähigkeit hat dein ${playerCar.name} gerettet!`);
     if (creditsGained > 0) lines.push(`+${creditsGained} Trost-Credits`);
   }
+  if (unused.length) {
+    lines.push(`Nicht gezündet, bleibt im Inventar: ${unused.map((id) => ABILITY_BY_ID[id].name).join(", ")}`);
+  }
 
   resultDetails.innerHTML = lines.map((l) => `<div>${l}</div>`).join("");
   showPhase(phaseResult);
 }
 
 btnResultClose.addEventListener("click", () => closeModal(challengeModal));
-
-// ---------------------------------------------------------------------
-// Renn-Animation (Canvas)
-// ---------------------------------------------------------------------
-
-function animateRace(playerCar, opponentCar, playerWins, teleportUsed, onDone) {
-  const ctx = raceCanvas.getContext("2d");
-  const w = raceCanvas.width, h = raceCanvas.height;
-  const trackStart = w * 0.08, trackEnd = w * 0.92;
-  const laneY = [h * 0.35, h * 0.7];
-  const TELEPORT_AT = 0.38; // Zeitpunkt des sichtbaren Teleport-Sprungs
-
-  const margin = 0.06 + Math.random() * 0.22;
-  const winnerPace = 1;
-  const loserPace = 1 - margin;
-  const playerPace = playerWins ? winnerPace : loserPace;
-  const opponentPace = playerWins ? loserPace : winnerPace;
-
-  const COUNTDOWN_MS = 900;
-  const RACE_MS = 2600;
-  const startTime = performance.now();
-
-  function drawTrack(t) {
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#0e1116";
-    ctx.fillRect(0, 0, w, h);
-
-    ctx.strokeStyle = "rgba(255,255,255,0.15)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([14, 10]);
-    for (const y of [h * 0.5]) {
-      ctx.beginPath();
-      ctx.moveTo(trackStart, y);
-      ctx.lineTo(trackEnd, y);
-      ctx.lineDashOffset = -t * 120;
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
-
-    // Start/Ziel-Linien
-    ctx.fillStyle = "#4bd07a";
-    ctx.fillRect(trackStart - 3, h * 0.2, 4, h * 0.6);
-    for (let i = 0; i < 6; i++) {
-      ctx.fillStyle = i % 2 === 0 ? "#f4f6f8" : "#14171b";
-      ctx.fillRect(trackEnd, h * 0.2 + i * (h * 0.6 / 6), 10, h * 0.6 / 6);
-    }
-  }
-
-  function drawSmallCar(car, x, y, facing) {
-    const cw = 70, chh = 34;
-    ctx.save();
-    ctx.translate(x, y - chh / 2);
-    ctx.scale(facing, 1);
-    renderCar(ctx, cw, chh, car, performance.now() / 1000);
-    ctx.restore();
-  }
-
-  function frame(now) {
-    const elapsed = now - startTime;
-
-    if (elapsed < COUNTDOWN_MS) {
-      drawTrack(0);
-      drawSmallCar(playerCar, trackStart + 10, laneY[0], 1);
-      drawSmallCar(opponentCar, trackStart + 10, laneY[1], 1);
-      const n = Math.ceil((COUNTDOWN_MS - elapsed) / 300);
-      ctx.fillStyle = "#f4f6f8";
-      ctx.font = `bold ${h * 0.22}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText(n > 0 ? String(n) : "LOS!", w / 2, h * 0.58);
-      requestAnimationFrame(frame);
-      return;
-    }
-
-    const t = Math.min(1, (elapsed - COUNTDOWN_MS) / RACE_MS);
-    const eased = 1 - Math.pow(1 - t, 2);
-    drawTrack(t);
-
-    let playerX = trackStart + (trackEnd - trackStart) * eased * playerPace;
-    const oppX = trackStart + (trackEnd - trackStart) * eased * opponentPace;
-    const bob1 = Math.sin(elapsed / 90) * 2;
-    const bob2 = Math.sin(elapsed / 90 + 1.4) * 2;
-
-    if (teleportUsed) {
-      // Vor dem Sprung hängt das Auto sichtbar zurück, dann schnappt es
-      // nach vorn – am Ziel stimmt die Position wieder mit dem Ergebnis überein.
-      const dist = (trackEnd - trackStart) * playerPace;
-      if (t < TELEPORT_AT) {
-        playerX -= dist * 0.12 * (1 - (t / TELEPORT_AT) * 0.4);
-      } else {
-        playerX += dist * 0.03 * (1 - (t - TELEPORT_AT) / (1 - TELEPORT_AT));
-      }
-    }
-
-    drawSmallCar(playerCar, playerX, laneY[0] + bob1, 1);
-    drawSmallCar(opponentCar, oppX, laneY[1] + bob2, 1);
-
-    if (teleportUsed && Math.abs(t - TELEPORT_AT) < 0.06) {
-      // Portal-Effekt: Ring am Austritt, Ring am Eintritt, Energiespur dazwischen.
-      const k = 1 - Math.abs(t - TELEPORT_AT) / 0.06;
-      const fromX = playerX - (trackEnd - trackStart) * playerPace * 0.14;
-      fxRing(ctx, playerX, laneY[0], 10 + (1 - k) * 34, "#7a5aff", k, 3);
-      fxRing(ctx, fromX, laneY[0], 8 + (1 - k) * 26, "#3fe0d4", k * 0.8, 2);
-      ctx.save();
-      ctx.globalAlpha = k * 0.9;
-      ctx.strokeStyle = "#bfa8ff";
-      ctx.lineWidth = 3;
-      ctx.shadowColor = "#7a5aff";
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.moveTo(fromX, laneY[0]);
-      ctx.lineTo(playerX, laneY[0]);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    if (t < 1) {
-      requestAnimationFrame(frame);
-    } else {
-      setTimeout(onDone, 500);
-    }
-  }
-
-  requestAnimationFrame(frame);
-}
 
 // ---------------------------------------------------------------------
 // Sammlung

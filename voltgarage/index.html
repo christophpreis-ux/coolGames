@@ -19,10 +19,12 @@
       <h2>So funktioniert's</h2>
       <ul>
         <li>Du startest mit einem einzigen, ziemlich schlechten Auto: der <b>Rostlaube</b>.</li>
-        <li>Mit Credits kaufst du <b>Booster</b> (wie Sammelkarten): Auto-Booster und Fähigkeiten-Booster, jeweils in <b>Level 1 und Level 2</b> – Level 2 kostet mehr, hat aber viel bessere Chancen auf seltene Karten. 50 verschiedene Autos und 53 verschiedene Fähigkeiten gibt es insgesamt.</li>
+        <li>Im <b>Shop</b> kaufst du Booster (wie Sammelkarten): Auto-Booster und Fähigkeiten-Booster, jeweils in <b>Level 1 und Level 2</b> – Level 2 kostet mehr, hat aber viel bessere Chancen. 56 verschiedene Autos und 56 verschiedene Fähigkeiten gibt es insgesamt, darunter die neue höchste Auto-Stufe: <b>Göttlich</b> – schwebende Wagen mit Stats jenseits der 100.</li>
         <li>Die gezogenen Karten liegen erst <b>verdeckt</b> vor dir – tippe sie an, um sie eine nach der anderen umzudrehen.</li>
         <li>Gegner bieten dir immer wieder Rennen an. Du siehst ihr Auto vorher und kannst das Angebot <b>annehmen oder ablehnen</b>.</li>
-        <li>Nimmst du an, wählst du eins deiner Autos zum Fahren (und optional bis zu 2 Fähigkeitskarten, die sich dabei verbrauchen – manche <b>teleportieren</b> dich im Rennen sogar nach vorn).</li>
+        <li>Das Rennen erlebst du aus der <b>Verfolgerperspektive</b> hinter deinem Auto: 800 m lange Strecke mit Kurven, Bäumen und Zielbogen. Gefahren wird automatisch – die Geschwindigkeit kommt direkt aus den Auto-Werten, ein doppelt so starkes Auto ist wirklich fast doppelt so schnell.</li>
+        <li>Deine gewählten Fähigkeitskarten liegen im Rennen als <b>Buttons</b> unter der Strecke: Nitro, Teleport, Fallen für den Gegner … du entscheidest, wann du sie zündest. Nicht gezündete Karten behältst du.</li>
+        <li>Achtung: Gegner können dich <b>angreifen</b> und kurz ausbremsen – außer du bist mit der Karte <b>Geist</b> gerade unverwundbar.</li>
         <li><b>Gewinnst</b> du: Credits, manchmal sogar das gegnerische Auto obendrauf. <b>Verlierst</b> du: Dein eingesetztes Auto geht an den Gegner – außer eine Fähigkeit schützt dich.</li>
         <li>Deshalb lohnt es sich, riskante Angebote manchmal einfach abzulehnen.</li>
         <li>Dein Spielstand wird <b>automatisch gespeichert</b> – du kannst jederzeit weiterspielen, wo du aufgehört hast.</li>
@@ -39,7 +41,7 @@
     </div>
 
     <div id="hub-actions">
-      <button id="btn-open-pack" class="primary-btn">📦 Booster kaufen</button>
+      <button id="btn-open-pack" class="primary-btn">🛒 Shop</button>
       <button id="btn-get-offer" class="primary-btn">🏁 Rennangebot einholen</button>
     </div>
 
@@ -55,12 +57,12 @@
     </div>
   </section>
 
-  <!-- Booster-Öffnen -->
+  <!-- Shop: Booster kaufen & öffnen -->
   <div id="pack-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-panel">
       <div class="modal-header">
-        <h2>Booster</h2>
+        <h2>🛒 Shop</h2>
         <button id="btn-pack-close" class="modal-close" aria-label="Schließen">✕</button>
       </div>
       <div id="pack-choose"></div>
@@ -75,7 +77,7 @@
   <!-- Rennangebot / Rennen -->
   <div id="challenge-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
-    <div class="modal-panel">
+    <div class="modal-panel modal-panel-wide">
       <div class="modal-header">
         <h2 id="challenge-heading">Rennangebot</h2>
         <button id="btn-challenge-close" class="modal-close" aria-label="Schließen">✕</button>
@@ -103,7 +105,8 @@
       </div>
 
       <div id="phase-race" class="hidden">
-        <canvas id="race-canvas" width="900" height="220"></canvas>
+        <canvas id="race-canvas" width="900" height="420"></canvas>
+        <div id="race-ability-bar"></div>
       </div>
 
       <div id="phase-result" class="hidden">

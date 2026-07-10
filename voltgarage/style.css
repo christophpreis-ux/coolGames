@@ -14,6 +14,7 @@
   --c-rare: #3f8fd4;
   --c-epic: #a04fd4;
   --c-legendary: #f2c94c;
+  --c-goettlich: #9ffcf0;
 }
 
 * { box-sizing: border-box; }
@@ -76,8 +77,15 @@ html, body {
 }
 
 .primary-btn {
-  background: var(--accent);
+  background: linear-gradient(160deg, #6cf2e4, #2fb8ac);
   color: #0e1116;
+  box-shadow: 0 2px 12px rgba(63,224,212,0.25);
+  transition: transform .12s, box-shadow .15s;
+}
+
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(63,224,212,0.4);
 }
 
 .primary-btn:disabled {
@@ -211,7 +219,7 @@ html, body {
 
 .game-card {
   width: 150px;
-  background: var(--panel-alt);
+  background: linear-gradient(170deg, #2a3040 0%, #20242f 60%, #1b1f28 100%);
   border-radius: 12px;
   padding: 10px;
   border: 2px solid var(--c-common);
@@ -241,6 +249,16 @@ html, body {
 .game-card.rarity-rare { border-color: var(--c-rare); box-shadow: 0 0 10px rgba(63,143,212,0.25); }
 .game-card.rarity-epic { border-color: var(--c-epic); box-shadow: 0 0 14px rgba(160,79,212,0.3); }
 .game-card.rarity-legendary { border-color: var(--c-legendary); box-shadow: 0 0 18px rgba(242,201,76,0.45); }
+.game-card.rarity-goettlich {
+  border-color: var(--c-goettlich);
+  box-shadow: 0 0 24px rgba(159,252,240,0.5);
+  animation: divine-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes divine-pulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(159,252,240,0.35); }
+  50% { box-shadow: 0 0 30px rgba(159,252,240,0.7), 0 0 50px rgba(255,215,90,0.25); }
+}
 
 .game-card canvas.car-icon {
   width: 100%;
@@ -267,6 +285,7 @@ html, body {
 .rarity-rare .card-rarity-tag { color: var(--c-rare); }
 .rarity-epic .card-rarity-tag { color: var(--c-epic); }
 .rarity-legendary .card-rarity-tag { color: var(--c-legendary); }
+.rarity-goettlich .card-rarity-tag { color: var(--c-goettlich); text-shadow: 0 0 8px rgba(159,252,240,0.8); }
 
 .stat-bars {
   display: flex;
@@ -299,6 +318,19 @@ html, body {
 .stat-bar-fill {
   height: 100%;
   background: var(--accent);
+  border-radius: 3px;
+}
+
+.stat-bar-fill.stat-t { background: linear-gradient(90deg, #2fb8ac, #3fe0d4); }
+.stat-bar-fill.stat-b { background: linear-gradient(90deg, #6a4ae0, #9a7aff); }
+.stat-bar-fill.stat-h { background: linear-gradient(90deg, #d4842f, #ffb84a); }
+
+.stat-bar-value {
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--text-dim);
 }
 
 .card-count-badge {
@@ -406,7 +438,7 @@ html, body {
 }
 
 .pack-option {
-  background: var(--panel-alt);
+  background: linear-gradient(170deg, #2a3040, #1d222c);
   border: 2px solid rgba(255,255,255,0.1);
   border-radius: 14px;
   padding: 14px 16px;
@@ -417,7 +449,31 @@ html, body {
   flex-direction: column;
   gap: 4px;
   align-items: center;
-  transition: border-color .15s, transform .15s;
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+  position: relative;
+}
+
+.pack-option[data-pack="auto2"] {
+  border-color: rgba(159,252,240,0.45);
+  background: linear-gradient(170deg, #223a42, #1a2530);
+}
+
+.pack-option[data-pack="auto2"]::after {
+  content: "GÖTTLICH MÖGLICH!";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #0e1116;
+  background: linear-gradient(90deg, #9ffcf0, #ffd75a);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+.pack-option:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(63,224,212,0.2);
 }
 
 .pack-option:hover:not(:disabled) {
@@ -581,10 +637,73 @@ html, body {
   width: 100%;
   max-width: 900px;
   height: auto;
-  aspect-ratio: 900 / 220;
+  aspect-ratio: 900 / 420;
   background: #0e1116;
-  border-radius: 10px;
+  border-radius: 12px;
   display: block;
+}
+
+#race-ability-bar {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  min-height: 46px;
+}
+
+.race-ability-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: linear-gradient(160deg, #14464a, #0d2b30);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(63,224,212,0.35);
+  transition: transform .1s, box-shadow .15s;
+}
+
+.race-ability-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 0 22px rgba(63,224,212,0.6);
+}
+
+.race-ability-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.race-ability-btn.race-ability-used {
+  opacity: 0.35;
+  border-color: #454b56;
+  background: #23272e;
+  text-decoration: line-through;
+}
+
+.race-ability-emoji {
+  font-size: 20px;
+}
+
+.race-passive-chip {
+  font-size: 13px;
+  color: var(--text-dim);
+  background: var(--panel-alt);
+  border-radius: 999px;
+  padding: 8px 16px;
+}
+
+.race-passive-chip span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #6d757f;
 }
 
 #result-title {
