@@ -38,7 +38,6 @@ const CHEAPEST_PACK_PRICE = Math.min(...Object.values(PACK_TYPES).map((p) => p.p
 const OPPONENT_ODDS = { common: 33, uncommon: 29, rare: 20, epic: 10, legendary: 6, goettlich: 2 };
 
 const REWARD_BY_RARITY = { common: 20, uncommon: 40, rare: 70, epic: 120, legendary: 200, goettlich: 400 };
-const BASE_STEAL_CHANCE = 0.08;
 
 // ---------------------------------------------------------------------
 // 50 Autos, 10 pro Seltenheitsstufe. Jedes mit Speed/Beschleunigung/
@@ -151,7 +150,7 @@ const ABILITIES = [
   { id: "gluecksbringer2", name: "Glücksbringer II", rarity: "uncommon", desc: "Deutlich weniger Pech im Rennwurf", effects: { luckFloor: 1.0 } },
   { id: "sponsorendeal", name: "Sponsoren-Deal", rarity: "uncommon", desc: "+40% Belohnung bei Sieg", effects: { rewardMult: 1.40 } },
   { id: "ersatzwagen", name: "Ersatzwagen", rarity: "uncommon", desc: "35% Chance, Auto bei Niederlage zu behalten", effects: { keepCarChance: 0.35 } },
-  { id: "diebstahlsicherung", name: "Diebstahlsicherung", rarity: "uncommon", desc: "+15% Chance auf Gegner-Auto bei Sieg", effects: { stealChanceBonus: 0.15 } },
+  { id: "diebstahlsicherung", name: "Diebstahlsicherung", rarity: "uncommon", desc: "+15% Bonus-Credits fürs Ausschlachten des erbeuteten Autos", effects: { stealChanceBonus: 0.15 } },
 
   // Selten
   { id: "nitro1", name: "Nitro-Schub I", rarity: "rare", desc: "+28% Tempo", effects: { speedBoost: 0.28 } },
@@ -163,7 +162,7 @@ const ABILITIES = [
   { id: "allesysteme1", name: "Alle Systeme I", rarity: "rare", desc: "+12% auf alle eigenen Werte", effects: { allBoost: 0.12 } },
   { id: "jackpot", name: "Jackpot", rarity: "rare", desc: "+70% Belohnung bei Sieg", effects: { rewardMult: 1.70 } },
   { id: "vollkasko", name: "Vollkasko", rarity: "rare", desc: "50% Chance, Auto bei Niederlage zu behalten", effects: { keepCarChance: 0.50 } },
-  { id: "kopfgeldjaeger1", name: "Kopfgeldjäger I", rarity: "rare", desc: "+30% Chance auf Gegner-Auto bei Sieg", effects: { stealChanceBonus: 0.30 } },
+  { id: "kopfgeldjaeger1", name: "Kopfgeldjäger I", rarity: "rare", desc: "+30% Bonus-Credits fürs Ausschlachten des erbeuteten Autos", effects: { stealChanceBonus: 0.30 } },
   { id: "kurzteleport", name: "Kurz-Teleport", rarity: "rare", desc: "Aktiv im Rennen: Teleport-Sprung ein Stück nach vorn", effects: { teleport: 0.25 } },
   { id: "oelfalle", name: "Ölfalle", rarity: "rare", desc: "Aktiv im Rennen: Ölspur – der Gegner rutscht und wird stark gebremst", effects: { trap: 0.35 } },
 
@@ -176,7 +175,7 @@ const ABILITIES = [
   { id: "perfekterstart", name: "Perfekter Start", rarity: "epic", desc: "Garantiert kein negativer Zufallswert", effects: { luckFloor: 1.0, guaranteedNoBadRoll: true } },
   { id: "hauptgewinn", name: "Hauptgewinn", rarity: "epic", desc: "+120% Belohnung bei Sieg", effects: { rewardMult: 2.20 } },
   { id: "vollversicherung", name: "Vollversicherung", rarity: "epic", desc: "75% Chance, Auto bei Niederlage zu behalten", effects: { keepCarChance: 0.75 } },
-  { id: "kopfgeldjaeger2", name: "Kopfgeldjäger II", rarity: "epic", desc: "+55% Chance auf Gegner-Auto bei Sieg", effects: { stealChanceBonus: 0.55 } },
+  { id: "kopfgeldjaeger2", name: "Kopfgeldjäger II", rarity: "epic", desc: "+55% Bonus-Credits fürs Ausschlachten des erbeuteten Autos", effects: { stealChanceBonus: 0.55 } },
   { id: "doppelzug", name: "Doppelzug", rarity: "epic", desc: "Nach dem Rennen: 100 Bonus-Credits", effects: { bonusCreditsAlways: 100 } },
   { id: "blitzteleport", name: "Blitz-Teleport", rarity: "epic", desc: "Aktiv im Rennen: großer Teleport-Sprung nach vorn", effects: { teleport: 0.45 } },
   { id: "geist", name: "Geist", rarity: "epic", desc: "Aktiv im Rennen: Geisterform – gegnerische Angriffe gehen durch dich hindurch", effects: { ghost: true } },
@@ -187,11 +186,11 @@ const ABILITIES = [
   { id: "unbesiegbar", name: "Unbesiegbar", rarity: "legendary", desc: "Auto ist bei Niederlage garantiert sicher", effects: { keepCarChance: 1.0 } },
   { id: "zeitmanipulation", name: "Zeitmanipulation", rarity: "legendary", desc: "Garantierter Sieg in diesem Rennen", effects: { guaranteedWin: true } },
   { id: "goldrausch", name: "Goldrausch", rarity: "legendary", desc: "+250% Belohnung bei Sieg", effects: { rewardMult: 3.50 } },
-  { id: "autodieb", name: "Autodieb", rarity: "legendary", desc: "Garantiert Gegner-Auto bei Sieg", effects: { stealChanceBonus: 1.0 } },
+  { id: "autodieb", name: "Autodieb", rarity: "legendary", desc: "+100% Bonus-Credits fürs Ausschlachten des erbeuteten Autos", effects: { stealChanceBonus: 1.0 } },
   { id: "phoenix", name: "Phönix", rarity: "legendary", desc: "Auto sicher bei Niederlage + Trost-Credits", effects: { keepCarChance: 1.0, refundOnLoss: 60 } },
   { id: "systemkollaps", name: "Systemkollaps", rarity: "legendary", desc: "Gegner-Werte halbiert (−50%)", effects: { oppAllDebuff: 0.50 } },
   { id: "meisterstratege", name: "Meisterstratege", rarity: "legendary", desc: "+35% eigene Werte, Gegner −20%", effects: { allBoost: 0.35, oppAllDebuff: 0.20 } },
-  { id: "singularitaet", name: "Singularität", rarity: "legendary", desc: "Garantierter Sieg + garantiertes Gegner-Auto", effects: { guaranteedWin: true, stealChanceBonus: 1.0 } },
+  { id: "singularitaet", name: "Singularität", rarity: "legendary", desc: "Garantierter Sieg + 100% Bonus-Credits fürs Ausschlachten des erbeuteten Autos", effects: { guaranteedWin: true, stealChanceBonus: 1.0 } },
   { id: "portalmeister", name: "Portal-Meister", rarity: "legendary", desc: "Aktiv im Rennen: riesiger Teleport-Sprung – und bei Niederlage teleportiert sich dein Auto sicher nach Hause", effects: { teleport: 0.7, keepCarChance: 1.0 } },
   { id: "schockfalle", name: "Schockfalle", rarity: "legendary", desc: "Aktiv im Rennen: Elektrofalle – legt den Gegner kurz komplett lahm", effects: { trap: 0.65 } },
 ];
@@ -2077,7 +2076,7 @@ function combineEffects(abilityIds) {
   const e = {
     speedBoost: 0, accelBoost: 0, handlingBoost: 0, allBoost: 0,
     oppSpeedDebuff: 0, oppAccelDebuff: 0, oppHandlingDebuff: 0, oppAllDebuff: 0,
-    rewardMult: 1, keepCarChance: 0, stealChanceBonus: 0,
+    rewardMult: 1, keepCarChance: 0,
     guaranteedWin: false, luckFloor: 0.7, refundOnLoss: 0, bonusCreditsAlways: 0,
     teleport: 0,
   };
@@ -2094,7 +2093,9 @@ function combineEffects(abilityIds) {
     if (fx.oppAllDebuff) e.oppAllDebuff += fx.oppAllDebuff;
     if (fx.rewardMult) e.rewardMult *= fx.rewardMult;
     if (fx.keepCarChance) e.keepCarChance = Math.max(e.keepCarChance, fx.keepCarChance);
-    if (fx.stealChanceBonus) e.stealChanceBonus += fx.stealChanceBonus;
+    // Das erbeutete Auto gibt es bei einem Sieg ohnehin garantiert – dieser
+    // Wert wirkt daher nur noch als Bonus-Multiplikator auf die Credits.
+    if (fx.stealChanceBonus) e.rewardMult *= 1 + fx.stealChanceBonus;
     if (fx.guaranteedWin) e.guaranteedWin = true;
     if (fx.luckFloor) e.luckFloor = Math.max(e.luckFloor, fx.luckFloor);
     if (fx.refundOnLoss) e.refundOnLoss += fx.refundOnLoss;
@@ -2696,15 +2697,12 @@ function applyRaceOutcome(playerCar, opponentCar, effects, outcome) {
 
   let creditsGained = 0;
   let carLost = false;
-  let carStolen = false;
 
   if (outcome.playerWins) {
     creditsGained = Math.round(REWARD_BY_RARITY[opponentCar.rarity] * effects.rewardMult);
-    if (Math.random() < BASE_STEAL_CHANCE + effects.stealChanceBonus) {
-      ownedCars.push(opponentCar.id);
-      discoveredCars.add(opponentCar.id);
-      carStolen = true;
-    }
+    // Wer gewinnt, bekommt das Auto des Gegners immer obendrauf.
+    ownedCars.push(opponentCar.id);
+    discoveredCars.add(opponentCar.id);
   } else {
     const keeps = Math.random() < effects.keepCarChance;
     if (!keeps) {
@@ -2731,7 +2729,7 @@ function applyRaceOutcome(playerCar, opponentCar, effects, outcome) {
   }
   if (outcome.playerWins) {
     lines.push(`+${creditsGained} Credits`);
-    if (carStolen) lines.push(`Bonus: Du hast das ${opponentCar.name} des Gegners erbeutet!`);
+    lines.push(`Du hast dir außerdem das ${opponentCar.name} des Gegners geschnappt!`);
   } else {
     if (carLost) lines.push(`Dein ${playerCar.name} geht an den Gegner.`);
     else lines.push(`Eine Fähigkeit hat dein ${playerCar.name} gerettet!`);

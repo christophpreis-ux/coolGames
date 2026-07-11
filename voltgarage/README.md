@@ -30,7 +30,7 @@ python3 -m http.server 8080
 - Das Rennen läuft aus der **Verfolgerperspektive** hinter deinem Auto, live simuliert auf einer **800 Meter langen Strecke** mit Kurven, Bäumen, Leitplanken und einem Zielbogen. Beide Autos fahren automatisch; ihre Geschwindigkeit ergibt sich direkt aus Speed/Beschleunigung/Handling – ein Auto mit doppelt so hohen Werten ist auch wirklich fast doppelt so schnell.
 - **Aktive Fähigkeitskarten** (Nitro-Boosts, Debuffs, Teleport, Fallen, Geist) liegen während des Rennens als große Buttons unter der Strecke. Du entscheidest selbst, *wann* du sie zündest – nur tatsächlich gedrückte Karten werden verbraucht, ungenutzte bleiben im Inventar. Rein passive Karten (Glücksbringer, Belohnungs-Boni, Diebstahlchance, Schutz bei Niederlage) wirken automatisch im Hintergrund.
 - Gegner können während des Rennens **angreifen** und dich kurz ausbremsen – außer die Fähigkeit **Geist** ist gerade aktiv, dann gehen Angriffe wirkungslos durch dich hindurch.
-- **Gewinnst** du: Credits (abhängig von der Seltenheit des Gegner-Autos) und eine kleine Chance, das Gegner-Auto obendrauf zu bekommen. **Verlierst** du: Dein eingesetztes Auto geht an den Gegner – außer eine Fähigkeit bewahrt es davor.
+- **Gewinnst** du: Credits (abhängig von der Seltenheit des Gegner-Autos) und **immer auch das Gegner-Auto obendrauf**. **Verlierst** du: Dein eingesetztes Auto geht an den Gegner – außer eine Fähigkeit bewahrt es davor.
 - Über "Sammlung" siehst du alle bisher entdeckten Autos und Fähigkeiten; noch nicht gefundene Karten erscheinen ausgegraut als "???". Dieser Sammlungsfortschritt bleibt auch nach einem Neustart erhalten.
 - Der **Spielstand wird automatisch gespeichert** (localStorage): Credits, Garage, Fähigkeitskarten und Sammlung überleben das Schließen des Browsers, der Start-Button wird zu "Weiterspielen".
 - "Neu starten" setzt Credits, Garage und Fähigkeitskarten auf den Anfangszustand zurück – die Sammlung (entdeckte Karten) bleibt unberührt.
@@ -78,7 +78,7 @@ Jede Karte wird bei einem Rennen verbraucht (einmalig, danach aus dem Inventar e
 | **Geist** | aktiv | Geist | Macht dich kurzzeitig unverwundbar gegen Gegner-Angriffe |
 | Belohnung erhöhen | passiv | Trinkgeld → Jackpot → Goldrausch | +20 % bis +250 % Credits bei Sieg |
 | Schutz bei Niederlage | passiv | Rostschutz → Vollversicherung → **Unbesiegbar** | 20 % bis 100 % Chance, das Auto trotz Niederlage zu behalten |
-| Auto stehlen | passiv | Diebstahlsicherung → Kopfgeldjäger II → **Autodieb** | +15 % bis 100 % zusätzliche Chance, das Gegner-Auto bei Sieg zu erbeuten |
+| Beute-Bonus | passiv | Diebstahlsicherung → Kopfgeldjäger II → **Autodieb** | +15 % bis 100 % Bonus-Credits fürs Ausschlachten des erbeuteten Gegner-Autos |
 | Sonderfälle | passiv | Ersatzteil, Doppelzug | feste Bonus-Credits unabhängig vom Ausgang |
 
 Die drei Teleport-Karten springen im Rennen sichtbar nach vorn: Das Auto hängt erst zurück, dann öffnet sich ein Portal (türkiser Austritts-Ring, lila Eintritts-Ring, Energiespur) und es materialisiert weiter vorne. Der legendäre **Portal-Meister** teleportiert dein Auto bei einer Niederlage außerdem sicher nach Hause – der Gegner bekommt es garantiert nicht. Die **Ölfalle** lässt den Gegner sichtbar ausrutschen und über eine Ölspur schlittern, die **Schockfalle** legt ihn komplett lahm.
@@ -86,7 +86,7 @@ Die drei Teleport-Karten springen im Rennen sichtbar nach vorn: Das Auto hängt 
 Die mächtigsten Karten im Spiel sind legendär:
 
 - **Zeitmanipulation** – garantierter Sieg in diesem Rennen, unabhängig von den Auto-Werten.
-- **Singularität** – garantierter Sieg **und** garantiert das Gegner-Auto erbeutet. Die stärkste Karte im Spiel.
+- **Singularität** – garantierter Sieg **und** 100 % Bonus-Credits fürs erbeutete Auto. Die stärkste Karte im Spiel.
 
 ## Technik
 
