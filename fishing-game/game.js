@@ -70,6 +70,9 @@ const FISH_SPECIES = [
     shape: "kraken", requiresRod: "kraken" },
 ];
 
+const SPECIES_BY_ID = {};
+FISH_SPECIES.forEach((s) => { SPECIES_BY_ID[s.id] = s; });
+
 // 15 Mutationen: seltene Varianten, die einen gefangenen Fisch mehr wert
 // machen. Werden erst nach dem Fang aufgedeckt (Überraschungseffekt).
 const MUTATIONS = [
@@ -117,6 +120,9 @@ const MUTATIONS = [
     pointMultiplier: 3.5, weightMultiplier: 1.3, sizeMultiplier: 1.2,
     colorOverride: "#2a1a4a", colorDarkOverride: "#1a0f30", sparkle: true },
 ];
+
+const MUTATION_BY_ID = {};
+MUTATIONS.forEach((m) => { MUTATION_BY_ID[m.id] = m; });
 
 // Angelruten: bessere Ruten brauchen weniger Tastendrücke und geben mehr
 // Zeit pro Tastendruck. Werden mit Punkten im Angelladen gekauft. Die
@@ -337,6 +343,84 @@ let bobPhase = 0;
 let castAnimStart = 0; // performance.now() beim Auswerfen, treibt die Aushol-/Wurf-Animation
 let lastTugTime = 0;   // performance.now() des letzten erfolgreichen Tastendrucks beim Drill (Ruck-Animation)
 
+// true zwischen "Angeln starten"/"Nochmal angeln" und dem Beenden per ✕ –
+// steuert, ob beim nächsten Seitenaufruf direkt wieder ins laufende
+// Angel-Fenster gesprungen wird (siehe loadGame/enterGameScreen).
+let sessionActive = false;
+
+// ---------------------------------------------------------------------
+// Autosave: Der Spielstand landet nach jeder Änderung (siehe updateHud)
+// in localStorage, damit Schließen der Seite/des Tabs nichts kostet.
+// Eine laufende Wurf-/Biss-Animation wird bewusst NICHT festgehalten –
+// beim Wiedereinstieg beginnt einfach ein frischer Wurf.
+// ---------------------------------------------------------------------
+
+const FISHING_SAVE_KEY = "blitzangler_save_v1";
+
+function saveGame() {
+  try {
+    localStorage.setItem(FISHING_SAVE_KEY, JSON.stringify({
+      sessionActive,
+      selectedCharacter,
+      score,
+      catches: catches.map((c) => ({
+        speciesId: c.species.id,
+        mutationId: c.mutation ? c.mutation.id : null,
+        weightValue: c.weightValue,
+        weightGrams: c.weightGrams,
+        presses: c.presses,
+        points: c.points,
+      })),
+      ownedRods: [...ownedRods],
+      equippedRod,
+      baitInventory,
+      equippedBait,
+    }));
+  } catch (err) {
+    // z. B. Privatmodus ohne localStorage – dann eben ohne Speichern.
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(FISHING_SAVE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (typeof s.score !== "number") return false;
+
+    sessionActive = !!s.sessionActive;
+    selectedCharacter = s.selectedCharacter === "bald" || s.selectedCharacter === "long" ? s.selectedCharacter : null;
+    score = s.score;
+    catches = (Array.isArray(s.catches) ? s.catches : [])
+      .filter((c) => SPECIES_BY_ID[c.speciesId])
+      .map((c) => ({
+        species: SPECIES_BY_ID[c.speciesId],
+        mutation: c.mutationId ? MUTATION_BY_ID[c.mutationId] || null : null,
+        weightValue: c.weightValue,
+        weightGrams: c.weightGrams,
+        presses: c.presses,
+        points: c.points,
+      }));
+
+    ownedRods = new Set((Array.isArray(s.ownedRods) ? s.ownedRods : ["standard"]).filter((id) => RODS[id]));
+    if (ownedRods.size === 0) ownedRods.add("standard");
+    equippedRod = RODS[s.equippedRod] ? s.equippedRod : "standard";
+
+    const restoredBait = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0, ultra: 0 };
+    if (s.baitInventory && typeof s.baitInventory === "object") {
+      for (const id of Object.keys(BAITS)) {
+        if (typeof s.baitInventory[id] === "number") restoredBait[id] = s.baitInventory[id];
+      }
+    }
+    baitInventory = restoredBait;
+    equippedBait = BAITS[s.equippedBait] ? s.equippedBait : "standard";
+
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------
 // DOM references
 // ---------------------------------------------------------------------
@@ -498,13 +582,17 @@ function drawPortrait(canvasEl, character) {
 drawPortrait(document.querySelector('canvas[data-portrait="bald"]'), "bald");
 drawPortrait(document.querySelector('canvas[data-portrait="long"]'), "long");
 
+function selectCharacter(character) {
+  document.querySelectorAll(".character-card").forEach((c) => c.classList.remove("selected"));
+  const card = document.querySelector(`.character-card[data-character="${character}"]`);
+  if (card) card.classList.add("selected");
+  selectedCharacter = character;
+  btnStart.disabled = false;
+  saveGame();
+}
+
 document.querySelectorAll(".character-card").forEach((card) => {
-  card.addEventListener("click", () => {
-    document.querySelectorAll(".character-card").forEach((c) => c.classList.remove("selected"));
-    card.classList.add("selected");
-    selectedCharacter = card.dataset.character;
-    btnStart.disabled = false;
-  });
+  card.addEventListener("click", () => selectCharacter(card.dataset.character));
 });
 
 // ---------------------------------------------------------------------
@@ -544,15 +632,20 @@ function bobberRestPos() {
 // Game flow
 // ---------------------------------------------------------------------
 
-function beginSession() {
-  score = 0;
-  catches = [];
+function enterGameScreen() {
   showScreen("game");
   requestAnimationFrame(() => {
     resizeCanvas();
     startCasting();
     requestAnimationFrame(loop);
   });
+}
+
+function beginSession() {
+  score = 0;
+  catches = [];
+  sessionActive = true;
+  enterGameScreen();
 }
 
 btnStart.addEventListener("click", () => {
@@ -572,6 +665,7 @@ function updateHud() {
   hudRod.textContent = `🎣 ${RODS[equippedRod].name}`;
   const baitLeft = baitInventory[equippedBait] || 0;
   hudBait.textContent = `🪱 ${BAITS[equippedBait].name} ×${baitLeft}`;
+  saveGame();
 }
 
 // Verbraucht 1 Köder für den bevorstehenden Wurf. Gibt true zurück, wenn
@@ -786,6 +880,8 @@ function maybeRevealOutcome(now) {
 
 function showSummary() {
   gameState = "idle";
+  sessionActive = false;
+  saveGame();
   const totalGrams = catches.reduce((sum, c) => sum + c.weightGrams, 0);
   const biggest = catches.reduce((max, c) => (!max || c.weightGrams > max.weightGrams ? c : max), null);
 
@@ -1972,4 +2068,15 @@ function loop(now) {
   if (gameState !== "idle") {
     requestAnimationFrame(loop);
   }
+}
+
+// ---------------------------------------------------------------------
+// Boot: gespeicherten Spielstand laden. War man mitten in einer laufenden
+// Angel-Session, springt man direkt wieder ins Spiel statt zur Auswahl.
+// ---------------------------------------------------------------------
+
+if (loadGame()) {
+  updateHud();
+  if (selectedCharacter) selectCharacter(selectedCharacter);
+  if (sessionActive && selectedCharacter) enterGameScreen();
 }
