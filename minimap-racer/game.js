@@ -347,6 +347,61 @@ let selectedCharacter = null;
 let currentLevelIndex = 0;
 let levelResults = []; // { medal, totalTime, avgReaction } pro Level, Index = Levelnummer-1
 
+// true zwischen "Rennen starten"/"Nochmal von vorne" und dem Verlassen
+// (✕, Zurück zur Fahrerauswahl, Fahrer wechseln, oder alle 3 Level
+// geschafft) – steuert, ob beim nächsten Seitenaufruf direkt wieder ins
+// aktuelle Level gesprungen wird statt zur Fahrerauswahl.
+let runActive = false;
+
+// ---------------------------------------------------------------------
+// Autosave: Fahrer, laufendes Level und bereits verdiente Medaillen
+// landen nach jeder Änderung in localStorage, damit ein Rennen, das
+// mittendrin abgebrochen wird (z. B. weil Schluss ist für heute), am
+// nächsten Tag beim aktuellen Level weitergeht statt bei Level 1. Die
+// laufende Fahrphysik selbst wird bewusst nicht festgehalten – beim
+// Wiedereinstieg startet das Level einfach neu.
+// ---------------------------------------------------------------------
+
+const RACER_SAVE_KEY = "minimap_racer_save_v1";
+
+function saveGame() {
+  try {
+    localStorage.setItem(RACER_SAVE_KEY, JSON.stringify({
+      selectedCharacter,
+      runActive,
+      currentLevelIndex,
+      levelResults: levelResults.map((r) => r && {
+        medalKey: r.medal.key,
+        totalTime: r.totalTime,
+        avgReaction: r.avgReaction,
+      }),
+    }));
+  } catch (err) {
+    // z. B. Privatmodus ohne localStorage – dann eben ohne Speichern.
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(RACER_SAVE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+
+    selectedCharacter = s.selectedCharacter === "bald" || s.selectedCharacter === "long" ? s.selectedCharacter : null;
+    runActive = !!s.runActive;
+    currentLevelIndex = Number.isInteger(s.currentLevelIndex) && s.currentLevelIndex >= 0 && s.currentLevelIndex < LEVELS.length
+      ? s.currentLevelIndex : 0;
+    levelResults = (Array.isArray(s.levelResults) ? s.levelResults : []).map((r) => {
+      if (!r || !MEDAL_DEFS[r.medalKey]) return undefined;
+      return { medal: MEDAL_DEFS[r.medalKey], totalTime: r.totalTime, avgReaction: r.avgReaction };
+    });
+
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 let currentLevel = LEVELS[0];
 
 const car = {
@@ -533,13 +588,17 @@ drawPortrait(document.querySelector('canvas[data-portrait="long"]'), "long");
 // Character select interactions
 // ---------------------------------------------------------------------
 
+function selectCharacter(character) {
+  document.querySelectorAll(".character-card").forEach((c) => c.classList.remove("selected"));
+  const card = document.querySelector(`.character-card[data-character="${character}"]`);
+  if (card) card.classList.add("selected");
+  selectedCharacter = character;
+  btnStart.disabled = false;
+  saveGame();
+}
+
 document.querySelectorAll(".character-card").forEach((card) => {
-  card.addEventListener("click", () => {
-    document.querySelectorAll(".character-card").forEach((c) => c.classList.remove("selected"));
-    card.classList.add("selected");
-    selectedCharacter = card.dataset.character;
-    btnStart.disabled = false;
-  });
+  card.addEventListener("click", () => selectCharacter(card.dataset.character));
 });
 
 btnStart.addEventListener("click", () => {
@@ -556,13 +615,21 @@ btnNext.addEventListener("click", () => {
     showOverview();
   }
 });
-btnBack.addEventListener("click", () => showScreen("select"));
+btnBack.addEventListener("click", () => {
+  runActive = false;
+  saveGame();
+  showScreen("select");
+});
 btnExitRace.addEventListener("click", () => exitRace());
 btnRestartAll.addEventListener("click", () => {
   levelResults = [];
   startLevel(0);
 });
-btnChangeDriver.addEventListener("click", () => showScreen("select"));
+btnChangeDriver.addEventListener("click", () => {
+  runActive = false;
+  saveGame();
+  showScreen("select");
+});
 
 // ---------------------------------------------------------------------
 // Kamera: folgt dem Wagen (die Strecken sind zu lang für eine feste
@@ -645,6 +712,8 @@ function updateCamera(dt) {
 function startLevel(index) {
   currentLevelIndex = index;
   currentLevel = LEVELS[index];
+  runActive = true;
+  saveGame();
 
   car.state = "driving";
   car.edge = firstEdgeFrom(currentLevel, START_NODE);
@@ -675,6 +744,8 @@ function startLevel(index) {
 function exitRace() {
   car.state = "idle";
   decisionBanner.classList.add("hidden");
+  runActive = false;
+  saveGame();
   showScreen("select");
 }
 
@@ -910,17 +981,18 @@ function average(arr) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
+const MEDAL_DEFS = {
+  diamond: { key: "diamond", icon: "💎", name: "Diamant-Medaille", desc: "Schnellste Gesamtzeit – perfekte Route, blitzschnell abgebogen!" },
+  gold: { key: "gold", icon: "🥇", name: "Gold-Medaille", desc: "⌀ Reaktionszeit an Kreuzungen: 5 Sekunden oder schneller." },
+  silver: { key: "silver", icon: "🥈", name: "Silber-Medaille", desc: "⌀ Reaktionszeit an Kreuzungen: bis zu 10 Sekunden." },
+  none: { key: "none", icon: "🏁", name: "Ziel erreicht", desc: "Keine Medaille – versuch schneller an den Kreuzungen zu reagieren." },
+};
+
 function computeMedal(level, totalTime, avgReaction) {
-  if (totalTime <= level.diamondTimeLimit) {
-    return { key: "diamond", icon: "💎", name: "Diamant-Medaille", desc: "Schnellste Gesamtzeit – perfekte Route, blitzschnell abgebogen!" };
-  }
-  if (avgReaction <= 5) {
-    return { key: "gold", icon: "🥇", name: "Gold-Medaille", desc: "⌀ Reaktionszeit an Kreuzungen: 5 Sekunden oder schneller." };
-  }
-  if (avgReaction <= 10) {
-    return { key: "silver", icon: "🥈", name: "Silber-Medaille", desc: "⌀ Reaktionszeit an Kreuzungen: bis zu 10 Sekunden." };
-  }
-  return { key: "none", icon: "🏁", name: "Ziel erreicht", desc: "Keine Medaille – versuch schneller an den Kreuzungen zu reagieren." };
+  if (totalTime <= level.diamondTimeLimit) return MEDAL_DEFS.diamond;
+  if (avgReaction <= 5) return MEDAL_DEFS.gold;
+  if (avgReaction <= 10) return MEDAL_DEFS.silver;
+  return MEDAL_DEFS.none;
 }
 
 function showResults() {
@@ -932,6 +1004,7 @@ function showResults() {
     totalTime: raceElapsed,
     avgReaction,
   };
+  saveGame();
 
   resultHeading.textContent = `${currentLevel.name} geschafft!`;
   medalBadge.textContent = medal.icon;
@@ -953,6 +1026,8 @@ function showResults() {
 }
 
 function showOverview() {
+  runActive = false;
+  saveGame();
   overviewList.innerHTML = LEVELS.map((level, i) => {
     const result = levelResults[i];
     if (!result) {
@@ -979,4 +1054,15 @@ function showOverview() {
   }).join("");
 
   showScreen("overview");
+}
+
+// ---------------------------------------------------------------------
+// Boot: gespeicherten Spielstand laden. War man mitten in einem Lauf
+// (Level gestartet, aber noch nicht beendet/verlassen), springt man
+// direkt wieder ins aktuelle Level statt zur Fahrerauswahl.
+// ---------------------------------------------------------------------
+
+if (loadGame()) {
+  if (selectedCharacter) selectCharacter(selectedCharacter);
+  if (runActive && selectedCharacter) startLevel(currentLevelIndex);
 }

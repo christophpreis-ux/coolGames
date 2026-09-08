@@ -21,6 +21,7 @@ python3 -m http.server 8080
 - Manche Abzweigungen sind Umwege. Finde die kürzeste Route zum Ziel.
 - Über den **✕**-Button im Rennen jederzeit zurück zur Fahrerauswahl.
 - Nach jedem Level: Medaille + Statistik, dann weiter zum nächsten Level. Nach Level 3 gibt's eine Gesamtübersicht mit der Medaille pro Level.
+- Der **Spielstand wird automatisch gespeichert** (localStorage): Fahrer, aktuelles Level und bereits verdiente Medaillen überstehen das Schließen der Seite. Warst du mitten in einem Lauf (Level gestartet, aber noch nicht per ✕ verlassen oder alle 3 Level geschafft), landest du beim nächsten Öffnen direkt wieder im aktuellen Level statt bei der Fahrerauswahl.
 
 ## Medaillen (pro Level)
 
@@ -35,3 +36,5 @@ Die Diamant-Zielzeit wird nicht per Faustformel geschätzt, sondern pro Level au
 ## Technik
 
 Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Jedes Level ist ein Graph aus Knoten/Kanten, der über einen kleinen Track-Builder (Geraden, Gabelungen mit 2 oder 3 Ästen, Kurven) in `game.js` beschrieben wird. Welcher Ast an einer Kreuzung "links", "geradeaus" bzw. "rechts" ist, wird per Winkel relativ zur Einfahrtsrichtung bestimmt – das funktioniert auch in Kurven und bei drei Abzweigungen. Die Kamera folgt dem Wagen (fester Zoom, sanftes Nachziehen mit Vorausblick); zusätzlich läuft eine kleine Übersichtskarte mit, die die komplette Strecke auf den verfügbaren Platz einpasst. Das Rendering läuft über Canvas 2D.
+
+Der Spielstand wird als JSON in `localStorage` gespeichert (`saveGame()`/`loadGame()`), analog zu Voltgarage und Blitzangler: ein `runActive`-Flag merkt sich, ob gerade ein Lauf unterwegs ist (zwischen "Rennen starten"/"Nochmal von vorne" und dem Verlassen per ✕, "Zurück zur Fahrerauswahl", "Fahrer wechseln" oder der Gesamtübersicht nach Level 3). Medaillen werden dabei nicht als komplette Objekte, sondern nur als `medalKey` serialisiert und über eine gemeinsame `MEDAL_DEFS`-Tabelle wieder aufgelöst. Beim Laden mit `runActive === true` springt das Spiel direkt in den Spielbildschirm und startet das gespeicherte Level neu (`startLevel(currentLevelIndex)`) – die laufende Fahrphysik einer unterbrochenen Fahrt wird bewusst nicht restauriert.
