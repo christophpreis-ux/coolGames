@@ -20,6 +20,7 @@ const BITE_WAIT_MAX = 3.4;
 const FAIL_ANIM_DURATION = 0.9;
 const SUCCESS_JUMP_DURATION = 0.7;
 const SUCCESS_HOLD_DURATION = 1.0;
+const CAST_ANIM_DURATION = 0.55; // Ausholen + Wurf beim Auswerfen
 
 // 19 Fisch-/Meeresarten, geordnet nach Schwierigkeit. Mehr Tastendrücke ->
 // mehr Punkte. "shape" bestimmt die art-typische Silhouette beim Zeichnen
@@ -333,6 +334,8 @@ let baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meiste
 let equippedBait = "standard";
 
 let bobPhase = 0;
+let castAnimStart = 0; // performance.now() beim Auswerfen, treibt die Aushol-/Wurf-Animation
+let lastTugTime = 0;   // performance.now() des letzten erfolgreichen Tastendrucks beim Drill (Ruck-Animation)
 
 // ---------------------------------------------------------------------
 // DOM references
@@ -388,7 +391,10 @@ function showScreen(name) {
 // Character portraits (reines Canvas, keine Assets)
 // ---------------------------------------------------------------------
 
-function drawHead(ctx, cx, cy, radius, character, angle) {
+// expression: "neutral" (normal) | "strain" (angespannt beim Drillen) |
+// "happy" (Fang gelandet) | "shock" (fällt ins Wasser)
+function drawHead(ctx, cx, cy, radius, character, angle, expression) {
+  expression = expression || "neutral";
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
@@ -420,6 +426,65 @@ function drawHead(ctx, cx, cy, radius, character, angle) {
     ctx.fill();
   }
 
+  // -- Gesicht --
+  const eyeY = -radius * 0.05;
+  const eyeDX = radius * 0.32;
+  const eyeR = radius * (expression === "shock" ? 0.16 : 0.1);
+
+  ctx.fillStyle = "#2a2018";
+  [-1, 1].forEach((side) => {
+    ctx.beginPath();
+    ctx.arc(side * eyeDX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Augenbrauen (Ausdruck je nach Zustand)
+  ctx.strokeStyle = "#3b2a1e";
+  ctx.lineWidth = Math.max(1, radius * 0.09);
+  ctx.lineCap = "round";
+  [-1, 1].forEach((side) => {
+    const bx = side * eyeDX;
+    const by = eyeY - radius * 0.32;
+    ctx.beginPath();
+    if (expression === "strain") {
+      ctx.moveTo(bx - side * radius * 0.14, by + radius * 0.07);
+      ctx.lineTo(bx + side * radius * 0.14, by - radius * 0.05);
+    } else if (expression === "shock") {
+      ctx.moveTo(bx - radius * 0.15, by - radius * 0.06);
+      ctx.lineTo(bx + radius * 0.15, by - radius * 0.06);
+    } else if (expression === "happy") {
+      ctx.moveTo(bx - radius * 0.14, by + radius * 0.03);
+      ctx.lineTo(bx + radius * 0.14, by - radius * 0.06);
+    } else {
+      ctx.moveTo(bx - radius * 0.14, by);
+      ctx.lineTo(bx + radius * 0.14, by - radius * 0.03);
+    }
+    ctx.stroke();
+  });
+
+  // Mund
+  const mouthY = radius * 0.42;
+  if (expression === "shock") {
+    ctx.fillStyle = "#3a1f18";
+    ctx.beginPath();
+    ctx.ellipse(0, mouthY, radius * 0.16, radius * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = "#7a3d30";
+    ctx.lineWidth = Math.max(1, radius * 0.09);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    if (expression === "happy") {
+      ctx.arc(0, mouthY - radius * 0.1, radius * 0.32, 0.15 * Math.PI, 0.85 * Math.PI);
+    } else if (expression === "strain") {
+      ctx.moveTo(-radius * 0.22, mouthY);
+      ctx.lineTo(radius * 0.22, mouthY);
+    } else {
+      ctx.arc(0, mouthY - radius * 0.14, radius * 0.22, 0.2 * Math.PI, 0.8 * Math.PI);
+    }
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
@@ -427,7 +492,7 @@ function drawPortrait(canvasEl, character) {
   const pctx = canvasEl.getContext("2d");
   const w = canvasEl.width, h = canvasEl.height;
   pctx.clearRect(0, 0, w, h);
-  drawHead(pctx, w / 2, h / 2 + 6, 34, character, 0);
+  drawHead(pctx, w / 2, h / 2 + 6, 34, character, 0, "neutral");
 }
 
 drawPortrait(document.querySelector('canvas[data-portrait="bald"]'), "bald");
@@ -499,11 +564,7 @@ btnExitGame.addEventListener("click", () => showSummary());
 btnChangeAngler.addEventListener("click", () => showScreen("select"));
 btnRestart.addEventListener("click", () => beginSession());
 
-btnContinue.addEventListener("click", () => {
-  outcomePanel.classList.add("hidden");
-  animState = null;
-  startCasting();
-});
+btnContinue.addEventListener("click", () => continueFishing());
 
 function updateHud() {
   hudScore.textContent = `${score} Punkte`;
@@ -576,11 +637,12 @@ function startCasting() {
   if (!consumeBait()) return;
 
   gameState = "casting";
+  castAnimStart = performance.now();
   statusText.textContent = "Angel ausgeworfen … warte auf einen Biss.";
   qtePanel.classList.add("hidden");
   outcomePanel.classList.add("hidden");
   noBaitPanel.classList.add("hidden");
-  const waitTime = BITE_WAIT_MIN + Math.random() * (BITE_WAIT_MAX - BITE_WAIT_MIN);
+  const waitTime = CAST_ANIM_DURATION + BITE_WAIT_MIN + Math.random() * (BITE_WAIT_MAX - BITE_WAIT_MIN);
   biteDeadline = performance.now() + waitTime * 1000;
   updateHud();
 }
@@ -594,6 +656,7 @@ function renderQteRow() {
 
 function startBite() {
   gameState = "biting";
+  lastTugTime = performance.now();
   currentSpecies = pickFishSpecies();
   currentMutation = pickMutation();
   const rod = RODS[equippedRod];
@@ -631,6 +694,7 @@ function handleDirection(dir) {
     failCatch();
     return;
   }
+  lastTugTime = performance.now();
   seqIndex++;
   renderQteRow();
   if (seqIndex >= sequence.length) {
@@ -640,12 +704,26 @@ function handleDirection(dir) {
   }
 }
 
+// Sobald das Ergebnis-Panel offen ist, reicht zum Weiterangeln irgendeine
+// der vier Angel-Tasten – man muss nicht extra zum Button greifen.
+function continueFishing() {
+  outcomePanel.classList.add("hidden");
+  animState = null;
+  startCasting();
+}
+
 window.addEventListener("keydown", (e) => {
-  if (gameState !== "biting") return;
-  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") handleDirection("left");
-  else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") handleDirection("right");
-  else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") handleDirection("up");
-  else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") handleDirection("down");
+  const isDirectionKey = ["ArrowLeft", "a", "A", "ArrowRight", "d", "D", "ArrowUp", "w", "W", "ArrowDown", "s", "S"].includes(e.key);
+  if (!isDirectionKey) return;
+
+  if (gameState === "biting") {
+    if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") handleDirection("left");
+    else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") handleDirection("right");
+    else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") handleDirection("up");
+    else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") handleDirection("down");
+  } else if (!outcomePanel.classList.contains("hidden")) {
+    continueFishing();
+  }
 });
 
 function succeedCatch() {
@@ -1557,12 +1635,51 @@ function drawSparkles(x, y, radius, now) {
   }
 }
 
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+// Kleiner "Überschwing" am Ende des Wurfs, damit die Rute spürbar
+// nach vorn schnalzt statt einfach sanft anzuhalten.
+function easeOutBack(t) {
+  const c1 = 1.4, c3 = c1 + 1;
+  const p = t - 1;
+  return 1 + c3 * p * p * p + c1 * p * p;
+}
+
+// Zeichnet einen Arm/ein Bein als zwei Segmente (Ober-/Unterschenkel bzw.
+// Ober-/Unterarm) mit leicht ausgebeultem "Ellbogen"/"Knie", statt einer
+// stocksteifen geraden Linie.
+function drawLimb(shoulderX, shoulderY, handX, handY, bend, width, color) {
+  const dx = handX - shoulderX, dy = handY - shoulderY;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;
+  const midX = (shoulderX + handX) / 2 + nx * bend;
+  const midY = (shoulderY + handY) / 2 + ny * bend;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.lineTo(midX, midY);
+  ctx.lineTo(handX, handY);
+  ctx.stroke();
+}
+
 function drawAngler(now, fallProgress, holdInfo) {
   const hand = anglerHandPos();
   const bodyX = hand.x - 14;
-  const bodyTopY = hand.y - 4;
+  const shoulderY = hand.y - 4;
   const bodyH = canvas.height * 0.16;
-  const headR = canvas.height * 0.022;
+  const torsoH = bodyH * 0.52;
+  const hipY = shoulderY + torsoH;
+  const feetY = hipY + bodyH * 0.48;
+  const headR = canvas.height * 0.024;
+  const limbW = Math.max(2.5, canvas.width * 0.0055);
+  const suitColor = "#5b6b7a";
+  const suitDark = "#455460";
 
   ctx.save();
   if (fallProgress > 0) {
@@ -1570,34 +1687,125 @@ function drawAngler(now, fallProgress, holdInfo) {
     const dropX = fallProgress * canvas.width * 0.05;
     const dropY = fallProgress * canvas.height * 0.12;
     const rotate = fallProgress * 0.9;
-    ctx.translate(bodyX + dropX, bodyTopY + bodyH * 0.5 + dropY);
+    ctx.translate(bodyX + dropX, shoulderY + (feetY - shoulderY) * 0.5 + dropY);
     ctx.rotate(rotate);
-    ctx.translate(-(bodyX), -(bodyTopY + bodyH * 0.5));
+    ctx.translate(-bodyX, -(shoulderY + (feetY - shoulderY) * 0.5));
   }
 
   const bob = holdInfo ? Math.sin(holdInfo.progress * Math.PI * 3) * canvas.height * 0.004 : 0;
+  const isCastAnim = gameState === "casting" && now - castAnimStart < CAST_ANIM_DURATION * 1000;
+  const isReeling = gameState === "biting";
 
-  // Körper
-  ctx.fillStyle = "#5b6b7a";
-  ctx.fillRect(bodyX - 10, bodyTopY, 20, bodyH);
-
-  if (holdInfo) {
-    // Arme hoch, Fisch wird über den Kopf gehalten
-    ctx.strokeStyle = "#5b6b7a";
-    ctx.lineWidth = Math.max(2, canvas.width * 0.005);
-    ctx.beginPath();
-    ctx.moveTo(bodyX - 9, bodyTopY + 6);
-    ctx.lineTo(bodyX - 6, bodyTopY - headR * 2.4 + bob);
-    ctx.moveTo(bodyX + 9, bodyTopY + 6);
-    ctx.lineTo(bodyX + 6, bodyTopY - headR * 2.4 + bob);
-    ctx.stroke();
+  // -- Zustandsabhängiger Ausdruck & leichte Körperhaltung --
+  let expression = "neutral";
+  let headTilt = 0;
+  let leanX = 0;
+  let stance = canvas.width * 0.009; // Standbreite der Beine
+  if (fallProgress > 0) {
+    expression = "shock";
+  } else if (holdInfo) {
+    expression = "happy";
+    headTilt = Math.sin(holdInfo.progress * Math.PI * 3) * 0.06;
+  } else if (isReeling) {
+    expression = "strain";
+    const tugElapsed = (now - lastTugTime) / 1000;
+    const tug = Math.exp(-tugElapsed * 6) * canvas.height * 0.02;
+    leanX = -tug * 0.6;
+    headTilt = Math.sin(now / 240) * 0.045;
+    stance *= 1.25; // breiterer Stand beim Drillen
+  } else if (isCastAnim) {
+    headTilt = Math.sin((now - castAnimStart) / 90) * 0.03;
   }
 
-  // Kopf
-  drawHead(ctx, bodyX, bodyTopY - 4, headR, selectedCharacter || "bald", 0);
+  // -- Beine & Füße --
+  ctx.strokeStyle = suitDark;
+  ctx.lineWidth = limbW * 1.2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(bodyX - stance + leanX * 0.3, hipY);
+  ctx.lineTo(bodyX - stance - stance * 0.15, feetY);
+  ctx.moveTo(bodyX + stance + leanX * 0.3, hipY);
+  ctx.lineTo(bodyX + stance + stance * 0.15, feetY);
+  ctx.stroke();
+
+  ctx.fillStyle = "#20262c";
+  [-1, 1].forEach((side) => {
+    ctx.beginPath();
+    ctx.ellipse(
+      bodyX + side * (stance + stance * 0.15) + canvas.width * 0.008, feetY,
+      canvas.width * 0.012, canvas.height * 0.006, 0, 0, Math.PI * 2
+    );
+    ctx.fill();
+  });
+
+  // -- Torso (mit leichtem Lehnen beim Drillen) --
+  ctx.save();
+  ctx.translate(leanX, 0);
+  ctx.fillStyle = suitColor;
+  ctx.beginPath();
+  ctx.moveTo(bodyX - 10, shoulderY + 3);
+  ctx.quadraticCurveTo(bodyX - 12, shoulderY, bodyX - 8, shoulderY - 2);
+  ctx.lineTo(bodyX + 8, shoulderY - 2);
+  ctx.quadraticCurveTo(bodyX + 12, shoulderY, bodyX + 10, shoulderY + 3);
+  ctx.lineTo(bodyX + 9, hipY);
+  ctx.lineTo(bodyX - 9, hipY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // -- Arme --
+  const shoulderL = { x: bodyX - 8 + leanX, y: shoulderY + 2 };
+  const shoulderR = { x: bodyX + 8 + leanX, y: shoulderY + 2 };
 
   if (holdInfo) {
-    const fishY = bodyTopY - headR * 2.6 - canvas.height * 0.02 + bob;
+    // Beide Arme hoch, Fisch wird über dem Kopf präsentiert
+    const holdHandY = shoulderY - headR * 2.3 + bob;
+    drawLimb(shoulderL.x, shoulderL.y, bodyX - headR * 1.2, holdHandY, -4, limbW, suitColor);
+    drawLimb(shoulderR.x, shoulderR.y, bodyX + headR * 1.2, holdHandY, 4, limbW, suitColor);
+  } else if (isCastAnim) {
+    // Ausholen (erste 40%) dann Wurf nach vorn (letzte 60%, mit leichtem Überschwung)
+    const p = Math.min(1, (now - castAnimStart) / (CAST_ANIM_DURATION * 1000));
+    const windBack = { x: bodyX + canvas.width * 0.026, y: shoulderY - canvas.height * 0.065 };
+    let rodHandX, rodHandY;
+    if (p < 0.4) {
+      const wp = 1 - Math.pow(1 - p / 0.4, 2);
+      rodHandX = lerp(hand.x, windBack.x, wp);
+      rodHandY = lerp(hand.y, windBack.y, wp);
+    } else {
+      const tp = easeOutBack(Math.min(1, (p - 0.4) / 0.6));
+      rodHandX = lerp(windBack.x, hand.x, tp);
+      rodHandY = lerp(windBack.y, hand.y, tp);
+    }
+    drawLimb(shoulderR.x, shoulderR.y, rodHandX, rodHandY, 6, limbW, suitColor);
+    drawLimb(shoulderL.x, shoulderL.y, bodyX - 15 + leanX, hipY - torsoH * 0.15, -3, limbW, suitColor);
+
+    // Rute in der ausholenden Hand, damit sie während der Animation nicht "leer" wirkt
+    const rodVisual = ROD_VISUALS[equippedRod];
+    ctx.strokeStyle = rodVisual.color;
+    ctx.lineWidth = Math.max(2, canvas.width * 0.003);
+    ctx.beginPath();
+    ctx.moveTo(rodHandX - (rodHandX - shoulderR.x) * 0.3, rodHandY - (rodHandY - shoulderR.y) * 0.3);
+    ctx.lineTo(rodHandX + (rodHandX - windBack.x) * 0.8, rodHandY + (rodHandY - windBack.y) * 0.8);
+    ctx.stroke();
+  } else if (isReeling) {
+    // Kurbelnde Drill-Bewegung: beide Hände nah an der Rolle, gegenläufig
+    const crank = Math.sin(now / 210) * canvas.height * 0.008;
+    const tugElapsed = (now - lastTugTime) / 1000;
+    const tug = Math.exp(-tugElapsed * 6) * canvas.height * 0.018;
+    drawLimb(shoulderR.x, shoulderR.y, hand.x + leanX * 0.4, hand.y + crank - tug, 5, limbW, suitColor);
+    drawLimb(shoulderL.x, shoulderL.y, hand.x - canvas.width * 0.012 + leanX * 0.4, hand.y - crank - tug * 0.6, -5, limbW, suitColor);
+  } else {
+    // Ruhehaltung: Rutenhand hält die Rute, der andere Arm hängt entspannt
+    drawLimb(shoulderR.x, shoulderR.y, hand.x, hand.y, 5, limbW, suitColor);
+    drawLimb(shoulderL.x, shoulderL.y, bodyX - 14 + leanX, hipY - torsoH * 0.1, -3, limbW, suitColor);
+  }
+
+  // -- Kopf --
+  const headCy = shoulderY - headR * 1.2 + leanX * 0;
+  drawHead(ctx, bodyX + leanX, headCy, headR, selectedCharacter || "bald", headTilt, expression);
+
+  if (holdInfo) {
+    const fishY = shoulderY - headR * 2.6 - canvas.height * 0.02 + bob;
     const visual = fishVisual(holdInfo.species, holdInfo.mutation);
     // Seedrache und Kraken dürfen richtig groß bleiben; alle anderen
     // werden gedeckelt, damit sie über dem Kopf nicht den ganzen
@@ -1623,7 +1831,10 @@ function drawRodAndBobber(now) {
   let bx = rest.x;
   let by = rest.y;
 
-  if (gameState === "casting") {
+  const isCastAnim = gameState === "casting" && now - castAnimStart < CAST_ANIM_DURATION * 1000;
+  if (isCastAnim) {
+    return; // Rute+Schwimmer erscheinen erst, sobald der Wurf abgeschlossen ist (siehe drawAngler)
+  } else if (gameState === "casting") {
     by += Math.sin(now / 260 + bobPhase) * (canvas.height * 0.012);
   } else if (gameState === "biting") {
     by += canvas.height * 0.02;
