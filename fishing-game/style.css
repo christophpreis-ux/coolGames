@@ -490,6 +490,49 @@ html, body {
   margin-bottom: 14px;
 }
 
+#promo-code-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+#promo-code-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255,255,255,0.06);
+  border: 2px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+#promo-code-input::placeholder {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+#promo-code-input:focus {
+  outline: none;
+  border-color: var(--accent-2);
+}
+
+#promo-code-status {
+  min-height: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+#promo-code-status.promo-success {
+  color: var(--success);
+}
+
+#promo-code-status.promo-error {
+  color: var(--danger);
+}
+
 #shop-rods {
   display: flex;
   flex-direction: column;

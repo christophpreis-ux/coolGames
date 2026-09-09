@@ -488,6 +488,9 @@ const shopModal = document.getElementById("shop-modal");
 const shopPointsEl = document.getElementById("shop-points");
 const shopRodsEl = document.getElementById("shop-rods");
 const shopBaitsEl = document.getElementById("shop-baits");
+const promoCodeInput = document.getElementById("promo-code-input");
+const btnPromoRedeem = document.getElementById("btn-promo-redeem");
+const promoCodeStatus = document.getElementById("promo-code-status");
 
 const canvas = document.getElementById("game-canvas");
 const ctx = canvas.getContext("2d");
@@ -683,7 +686,14 @@ btnStart.addEventListener("click", () => {
 });
 
 btnExitGame.addEventListener("click", () => showSummary());
-btnChangeAngler.addEventListener("click", () => showScreen("select"));
+btnChangeAngler.addEventListener("click", () => {
+  // Kompletter Run-Reset: verhindert, dass ein hängender/aktiver Zustand
+  // beim nächsten Laden wieder ins Spiel statt zur Auswahl springt.
+  gameState = "idle";
+  sessionActive = false;
+  saveGame();
+  showScreen("select");
+});
 btnRestart.addEventListener("click", () => beginSession());
 
 btnContinue.addEventListener("click", () => continueFishing());
@@ -836,6 +846,8 @@ function continueFishing() {
 }
 
 window.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return; // z. B. Promo-Code-Feld
+
   const isDirectionKey = ["ArrowLeft", "a", "A", "ArrowRight", "d", "D", "ArrowUp", "w", "W", "ArrowDown", "s", "S"].includes(e.key);
   if (!isDirectionKey) return;
 
@@ -2090,15 +2102,54 @@ function showAlienBanner() {
   setTimeout(() => alienBanner.classList.add("hidden"), ALIEN_BANNER_DURATION * 1000);
 }
 
+function startAlienEvent(now) {
+  alienEventUntil = now + ALIEN_EVENT_DURATION * 1000;
+  showAlienBanner();
+}
+
 function maybeRollAlienEvent(now) {
   if (now - lastAlienCheck < ALIEN_CHECK_INTERVAL * 1000) return;
   lastAlienCheck = now;
   if (alienEventUntil > now) return; // Fenster läuft schon
   if (Math.random() < ALIEN_EVENT_CHANCE) {
-    alienEventUntil = now + ALIEN_EVENT_DURATION * 1000;
-    showAlienBanner();
+    startAlienEvent(now);
   }
 }
+
+// ---------------------------------------------------------------------
+// Promo-Codes
+// ---------------------------------------------------------------------
+// Groß-/Kleinschreibung zählt bewusst mit (kein .toUpperCase() beim
+// Vergleich) – wer den Code kennt, muss ihn genauso eintippen.
+
+const PROMO_CODES = {
+  "HIGH ALIENS": {
+    message: "👽 Code eingelöst – das Alien-Event startet sofort!",
+    apply() { startAlienEvent(performance.now()); },
+  },
+};
+
+function redeemPromoCode() {
+  const code = promoCodeInput.value.trim();
+  if (!code) return;
+
+  const promo = PROMO_CODES[code];
+  promoCodeStatus.classList.remove("promo-success", "promo-error");
+  if (promo) {
+    promo.apply();
+    promoCodeStatus.textContent = promo.message;
+    promoCodeStatus.classList.add("promo-success");
+  } else {
+    promoCodeStatus.textContent = "Diesen Code gibt's nicht.";
+    promoCodeStatus.classList.add("promo-error");
+  }
+  promoCodeInput.value = "";
+}
+
+btnPromoRedeem.addEventListener("click", redeemPromoCode);
+promoCodeInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") redeemPromoCode();
+});
 
 // ---------------------------------------------------------------------
 // Main loop
