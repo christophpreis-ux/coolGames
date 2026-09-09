@@ -22,6 +22,14 @@ const SUCCESS_JUMP_DURATION = 0.7;
 const SUCCESS_HOLD_DURATION = 1.0;
 const CAST_ANIM_DURATION = 0.55; // Ausholen + Wurf beim Auswerfen
 
+// Alien-Event: einmal pro Minute Spielzeit besteht eine 1-zu-100-Chance,
+// dass für ein paar Sekunden ein Alien-Fisch im Wasser auftaucht (per UFO
+// am Himmel sichtbar) und dann statt der normalen Zufallsart anbeißt.
+const ALIEN_CHECK_INTERVAL = 60; // Sekunden zwischen den Würfen
+const ALIEN_EVENT_CHANCE = 0.01; // 1%
+const ALIEN_EVENT_DURATION = 25; // Sekunden, die das Fenster offen bleibt
+const ALIEN_BANNER_DURATION = 4.5; // Sekunden, die die Meldung eingeblendet bleibt
+
 // 19 Fisch-/Meeresarten, geordnet nach Schwierigkeit. Mehr Tastendrücke ->
 // mehr Punkte. "shape" bestimmt die art-typische Silhouette beim Zeichnen
 // (siehe drawCreature) – jede Art sieht so aus wie ihre echte Tiergruppe,
@@ -119,6 +127,14 @@ const MUTATIONS = [
   { id: "kosmisch", name: "Kosmisch", prefixEmoji: "🌌", chance: 0.2,
     pointMultiplier: 3.5, weightMultiplier: 1.3, sizeMultiplier: 1.2,
     colorOverride: "#2a1a4a", colorDarkOverride: "#1a0f30", sparkle: true },
+
+  // Alien: kein normaler Pool-Eintrag (chance 0, wird in pickMutation()
+  // aus der normalen Auswürfelung ausgeschlossen) – erscheint stattdessen
+  // ausschließlich, solange ein Alien-Event läuft, dafür dann garantiert
+  // bei jedem Fang. Die stärkste Mutation im Spiel.
+  { id: "alien", name: "Alien", prefixEmoji: "👽", chance: 0, eventOnly: true,
+    pointMultiplier: 4.0, weightMultiplier: 1.2, sizeMultiplier: 1.15,
+    colorOverride: "#5aff8a", colorDarkOverride: "#1f9e52", sparkle: true },
 ];
 
 const MUTATION_BY_ID = {};
@@ -264,9 +280,16 @@ function pickFishSpecies() {
 }
 
 function pickMutation() {
+  // Alien-Event aktiv: JEDER gefangene Fisch bekommt garantiert die
+  // Alien-Mutation, egal welche Art gerade anbeißt.
+  if (alienEventUntil > performance.now()) {
+    return MUTATION_BY_ID.alien;
+  }
+
   const r = Math.random() * 100;
   let cumulative = 0;
   for (const m of MUTATIONS) {
+    if (m.eventOnly) continue; // nur über das Event erreichbar, nie normal auswürfelbar
     cumulative += m.chance;
     if (r < cumulative) return m;
   }
@@ -342,6 +365,9 @@ let equippedBait = "standard";
 let bobPhase = 0;
 let castAnimStart = 0; // performance.now() beim Auswerfen, treibt die Aushol-/Wurf-Animation
 let lastTugTime = 0;   // performance.now() des letzten erfolgreichen Tastendrucks beim Drill (Ruck-Animation)
+
+let lastAlienCheck = 0;  // performance.now() des letzten Alien-Würfelwurfs
+let alienEventUntil = 0; // performance.now(), bis wann das Alien-Fenster offen ist (0/abgelaufen = inaktiv)
 
 // true zwischen "Angeln starten"/"Nochmal angeln" und dem Beenden per ✕ –
 // steuert, ob beim nächsten Seitenaufruf direkt wieder ins laufende
@@ -444,6 +470,7 @@ const hudCatches = document.getElementById("hud-catches");
 const hudRod = document.getElementById("hud-rod");
 const hudBait = document.getElementById("hud-bait");
 const statusText = document.getElementById("status-text");
+const alienBanner = document.getElementById("alien-banner");
 const qtePanel = document.getElementById("qte-panel");
 const qteKeysEl = document.getElementById("qte-keys");
 const qteTimerFill = document.getElementById("qte-timerbar-fill");
@@ -634,6 +661,8 @@ function bobberRestPos() {
 
 function enterGameScreen() {
   showScreen("game");
+  lastAlienCheck = performance.now();
+  alienEventUntil = 0;
   requestAnimationFrame(() => {
     resizeCanvas();
     startCasting();
@@ -2052,10 +2081,32 @@ function render(now) {
 }
 
 // ---------------------------------------------------------------------
+// Alien-Event
+// ---------------------------------------------------------------------
+
+function showAlienBanner() {
+  alienBanner.textContent = "👽 Alien-Event! Jeder Fisch, den du jetzt fängst, wird zum Alien-Mutanten!";
+  alienBanner.classList.remove("hidden");
+  setTimeout(() => alienBanner.classList.add("hidden"), ALIEN_BANNER_DURATION * 1000);
+}
+
+function maybeRollAlienEvent(now) {
+  if (now - lastAlienCheck < ALIEN_CHECK_INTERVAL * 1000) return;
+  lastAlienCheck = now;
+  if (alienEventUntil > now) return; // Fenster läuft schon
+  if (Math.random() < ALIEN_EVENT_CHANCE) {
+    alienEventUntil = now + ALIEN_EVENT_DURATION * 1000;
+    showAlienBanner();
+  }
+}
+
+// ---------------------------------------------------------------------
 // Main loop
 // ---------------------------------------------------------------------
 
 function loop(now) {
+  maybeRollAlienEvent(now);
+
   if (gameState === "casting" && now >= biteDeadline) {
     startBite();
   } else if (gameState === "biting" && now >= keyDeadline) {
