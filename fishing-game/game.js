@@ -503,6 +503,7 @@ const screens = {
 };
 
 const btnStart = document.getElementById("btn-start");
+const btnResetSelect = document.getElementById("btn-reset-select");
 const btnExitGame = document.getElementById("btn-exit-game");
 const btnShop = document.getElementById("btn-shop");
 const btnShopClose = document.getElementById("btn-shop-close");
@@ -742,6 +743,21 @@ btnStart.addEventListener("click", () => {
   beginSession();
 });
 
+// Manueller Reset auf dem Auswahlbildschirm: Spiel geht komplett von vorne
+// los (Punkte, Ruten, Köder, Fänge, Angler-Wahl) – wie ein hardReset, nur
+// ohne Zwang und mit Sicherheitsabfrage. Fischlexikon und Promo-Historie
+// bleiben absichtlich unangetastet (siehe resetProgress).
+btnResetSelect.addEventListener("click", () => {
+  if (!confirm("Wirklich das ganze Spiel zurücksetzen? Punkte, Ruten, Köder, alle Fänge und die Angler-Wahl gehen verloren. (Fischlexikon-Sammlung und Promo-Codes bleiben erhalten.)")) return;
+  resetProgress();
+  gameState = "idle";
+  sessionActive = false;
+  selectedCharacter = null;
+  document.querySelectorAll(".character-card").forEach((c) => c.classList.remove("selected"));
+  btnStart.disabled = true;
+  saveGame();
+});
+
 btnExitGame.addEventListener("click", () => showSummary());
 btnChangeAngler.addEventListener("click", () => {
   // Kompletter Run-Reset: verhindert, dass ein hängender/aktiver Zustand
@@ -809,15 +825,25 @@ function consumeBait() {
   return false;
 }
 
-// Kompletter Reset: Punkte, Fänge, Ruten UND Köder zurück auf null bzw.
-// Startbestand. Die eigentliche Konsequenz, wenn man sich verzockt hat.
-function hardReset() {
+// Setzt Punkte, Fänge, Ruten und Köder zurück auf den Startzustand. Wird
+// sowohl vom automatischen Neustart bei leerem Köcher (hardReset) als auch
+// vom manuellen Reset-Button auf dem Auswahlbildschirm verwendet. Das
+// Fischlexikon (discoveredSpecies/discoveredMutations) und die Promo-Code-
+// Historie sind bewusst NICHT Teil davon – die überleben jeden Reset,
+// genau wie in Volt Garage.
+function resetProgress() {
   score = 0;
   catches = [];
   ownedRods = new Set(["standard"]);
   equippedRod = "standard";
   baitInventory = { standard: STARTER_BAIT_COUNT, premium: 0, profi: 0, meister: 0, ultra: 0 };
   equippedBait = "standard";
+}
+
+// Kompletter Reset mitten im Spiel: Konsequenz, wenn man sich verzockt hat
+// (kein Köder mehr, kein Geld für Nachschub) – geht danach direkt weiter.
+function hardReset() {
+  resetProgress();
   noBaitPanel.classList.add("hidden");
   updateHud();
   startCasting();

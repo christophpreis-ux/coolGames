@@ -25,6 +25,7 @@ python3 -m http.server 8080
 - Über den **✕**-Button jederzeit die Angel-Session beenden und die Zusammenfassung sehen (Gesamtpunkte, Anzahl Fische, größter Fang, Liste aller Fänge).
 - Der **Spielstand wird automatisch gespeichert** (localStorage): Punkte, Fänge, Ruten, Köder-Vorrat und der gewählte Angler überstehen das Schließen der Seite. Warst du gerade mitten in einer Angel-Session, landest du beim nächsten Öffnen direkt wieder im Spiel (mit einem frischen Wurf statt einer mitten drin abgebrochenen Animation).
 - "Angler wechseln" auf der Zusammenfassung setzt den laufenden Run vollständig zurück, bevor es zurück zur Auswahl geht – so bleibt man nie in einem Zustand hängen, der beim nächsten Laden wieder mitten ins Spiel statt zur Auswahl springt.
+- Auf dem Auswahlbildschirm gibt's zusätzlich den Button **"Spiel zurücksetzen"** (mit Sicherheitsabfrage): Punkte, Ruten, Köder, alle Fänge und die Angler-Wahl gehen komplett von vorne los. Das Fischlexikon (gesammelte Arten/Mutationen) und die Promo-Code-Historie bleiben davon unberührt – die sind eine dauerhafte Sammlung und werden absichtlich nie zurückgesetzt.
 
 ## Die 20 Fisch-/Meeresarten
 
