@@ -23,12 +23,23 @@ const SUCCESS_HOLD_DURATION = 1.0;
 const CAST_ANIM_DURATION = 0.55; // Ausholen + Wurf beim Auswerfen
 
 // Alien-Event: einmal pro Minute Spielzeit besteht eine 1-zu-100-Chance,
-// dass für ein paar Sekunden ein Alien-Fisch im Wasser auftaucht (per UFO
-// am Himmel sichtbar) und dann statt der normalen Zufallsart anbeißt.
+// dass für eine Weile jeder gefangene Fisch garantiert die Alien-Mutation
+// bekommt (grün, glitzert, +300% Punkte) statt der normalen Auswahl.
 const ALIEN_CHECK_INTERVAL = 60; // Sekunden zwischen den Würfen
 const ALIEN_EVENT_CHANCE = 0.01; // 1%
 const ALIEN_EVENT_DURATION = 25; // Sekunden, die das Fenster offen bleibt
 const ALIEN_BANNER_DURATION = 4.5; // Sekunden, die die Meldung eingeblendet bleibt
+
+// Lucky-Buff (per Promo-Code "LUCKY"): verdreifacht für eine Weile die
+// Chance auf JEDE normale Mutation (nicht nur eine feste), indem die
+// Prozent-Werte in pickMutation() mit dem Multiplikator skaliert werden.
+const LUCKY_BUFF_DURATION = 600; // Sekunden (10 Minuten)
+const LUCKY_CHANCE_MULTIPLIER = 3;
+
+// Promo-Codes: pro Code max. PROMO_RATE_LIMIT Einlösungen innerhalb eines
+// rollierenden PROMO_RATE_WINDOW_MS-Fensters (wall-clock, siehe promoRedemptions).
+const PROMO_RATE_LIMIT = 2;
+const PROMO_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 Stunde
 
 // 19 Fisch-/Meeresarten, geordnet nach Schwierigkeit. Mehr Tastendrücke ->
 // mehr Punkte. "shape" bestimmt die art-typische Silhouette beim Zeichnen
@@ -286,11 +297,14 @@ function pickMutation() {
     return MUTATION_BY_ID.alien;
   }
 
+  // Lucky-Buff aktiv: alle normalen Mutationschancen verdreifacht.
+  const luckMultiplier = luckyBuffUntil > performance.now() ? LUCKY_CHANCE_MULTIPLIER : 1;
+
   const r = Math.random() * 100;
   let cumulative = 0;
   for (const m of MUTATIONS) {
     if (m.eventOnly) continue; // nur über das Event erreichbar, nie normal auswürfelbar
-    cumulative += m.chance;
+    cumulative += m.chance * luckMultiplier;
     if (r < cumulative) return m;
   }
   return null;
@@ -368,6 +382,13 @@ let lastTugTime = 0;   // performance.now() des letzten erfolgreichen Tastendruc
 
 let lastAlienCheck = 0;  // performance.now() des letzten Alien-Würfelwurfs
 let alienEventUntil = 0; // performance.now(), bis wann das Alien-Fenster offen ist (0/abgelaufen = inaktiv)
+let luckyBuffUntil = 0;  // performance.now(), bis wann der Lucky-Buff (3-faches Mutationsglück) aktiv ist
+
+// Persistiert (siehe saveGame/loadGame): { [code]: number[] } – Date.now()-
+// Zeitstempel erfolgreicher Einlösungen je Promo-Code, für das stündliche
+// Limit. Bewusst Date.now() statt performance.now(), damit ein Neuladen
+// der Seite das Limit nicht einfach umgeht.
+let promoRedemptions = {};
 
 // true zwischen "Angeln starten"/"Nochmal angeln" und dem Beenden per ✕ –
 // steuert, ob beim nächsten Seitenaufruf direkt wieder ins laufende
@@ -401,6 +422,7 @@ function saveGame() {
       equippedRod,
       baitInventory,
       equippedBait,
+      promoRedemptions,
     }));
   } catch (err) {
     // z. B. Privatmodus ohne localStorage – dann eben ohne Speichern.
@@ -440,6 +462,15 @@ function loadGame() {
     }
     baitInventory = restoredBait;
     equippedBait = BAITS[s.equippedBait] ? s.equippedBait : "standard";
+
+    promoRedemptions = {};
+    if (s.promoRedemptions && typeof s.promoRedemptions === "object") {
+      for (const [code, timestamps] of Object.entries(s.promoRedemptions)) {
+        if (Array.isArray(timestamps)) {
+          promoRedemptions[code] = timestamps.filter((t) => typeof t === "number");
+        }
+      }
+    }
 
     return true;
   } catch (err) {
@@ -666,6 +697,7 @@ function enterGameScreen() {
   showScreen("game");
   lastAlienCheck = performance.now();
   alienEventUntil = 0;
+  luckyBuffUntil = 0;
   requestAnimationFrame(() => {
     resizeCanvas();
     startCasting();
@@ -2120,29 +2152,59 @@ function maybeRollAlienEvent(now) {
 // Promo-Codes
 // ---------------------------------------------------------------------
 // Groß-/Kleinschreibung zählt bewusst mit (kein .toUpperCase() beim
-// Vergleich) – wer den Code kennt, muss ihn genauso eintippen.
+// Vergleich) – wer den Code kennt, muss ihn genauso eintippen. Jeder Code
+// ist zusätzlich auf PROMO_RATE_LIMIT Einlösungen pro rollierender Stunde
+// begrenzt (siehe redeemPromoCode), damit z. B. "HIGH ALIENS" nicht einfach
+// dauerhaft am Stück eingelöst werden kann.
 
 const PROMO_CODES = {
   "HIGH ALIENS": {
     message: "👽 Code eingelöst – das Alien-Event startet sofort!",
     apply() { startAlienEvent(performance.now()); },
   },
+  "LUCKY": {
+    message: `🍀 Code eingelöst – ${LUCKY_CHANCE_MULTIPLIER}-faches Glück auf Mutationen für die nächsten ${Math.round(LUCKY_BUFF_DURATION / 60)} Minuten!`,
+    apply() { luckyBuffUntil = performance.now() + LUCKY_BUFF_DURATION * 1000; },
+  },
 };
+
+// Entfernt abgelaufene Zeitstempel und gibt die noch "zählenden"
+// Einlösungen der letzten Stunde für diesen Code zurück.
+function recentRedemptions(code) {
+  const now = Date.now();
+  const kept = (promoRedemptions[code] || []).filter((t) => now - t < PROMO_RATE_WINDOW_MS);
+  promoRedemptions[code] = kept;
+  return kept;
+}
 
 function redeemPromoCode() {
   const code = promoCodeInput.value.trim();
   if (!code) return;
 
-  const promo = PROMO_CODES[code];
   promoCodeStatus.classList.remove("promo-success", "promo-error");
-  if (promo) {
-    promo.apply();
-    promoCodeStatus.textContent = promo.message;
-    promoCodeStatus.classList.add("promo-success");
-  } else {
+
+  const promo = PROMO_CODES[code];
+  if (!promo) {
     promoCodeStatus.textContent = "Diesen Code gibt's nicht.";
     promoCodeStatus.classList.add("promo-error");
+    promoCodeInput.value = "";
+    return;
   }
+
+  const recent = recentRedemptions(code);
+  if (recent.length >= PROMO_RATE_LIMIT) {
+    const minutesLeft = Math.ceil((PROMO_RATE_WINDOW_MS - (Date.now() - recent[0])) / 60000);
+    promoCodeStatus.textContent = `Diesen Code hast du schon ${PROMO_RATE_LIMIT}× in dieser Stunde eingelöst. Nochmal in ca. ${minutesLeft} Min.`;
+    promoCodeStatus.classList.add("promo-error");
+    promoCodeInput.value = "";
+    return;
+  }
+
+  recent.push(Date.now());
+  promo.apply();
+  saveGame();
+  promoCodeStatus.textContent = promo.message;
+  promoCodeStatus.classList.add("promo-success");
   promoCodeInput.value = "";
 }
 
