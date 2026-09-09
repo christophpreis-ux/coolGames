@@ -57,6 +57,8 @@ const FISH_SPECIES = [
     points: 260, rarity: 12, emoji: "🐠", color: "#5c8a5c", colorDark: "#3d603d", sizeScale: 1.15, shape: "fish" },
   { id: "lachs", name: "Lachs", presses: 6, weight: [3, 14], unit: "kg",
     points: 360, rarity: 8, emoji: "🐡", color: "#e08a6a", colorDark: "#a85c42", sizeScale: 1.3, shape: "fish" },
+  { id: "mueckenfisch", name: "Mückenfisch", presses: 6, weight: [1, 5], unit: "g",
+    points: 340, rarity: 6, emoji: "🦟", color: "#5a5248", colorDark: "#3a352c", sizeScale: 0.5, shape: "mosquito" },
   { id: "thunfisch", name: "Blauflossen-Thunfisch", presses: 7, weight: [50, 300], unit: "kg",
     points: 480, rarity: 5, emoji: "🐡", color: "#3f5f7a", colorDark: "#263c4d", sizeScale: 1.55, shape: "tuna" },
   { id: "schwertfisch", name: "Schwertfisch", presses: 8, weight: [50, 150], unit: "kg",
@@ -390,6 +392,13 @@ let luckyBuffUntil = 0;  // performance.now(), bis wann der Lucky-Buff (3-faches
 // der Seite das Limit nicht einfach umgeht.
 let promoRedemptions = {};
 
+// Persistente Sammlung fürs Fischlexikon (siehe Fishdex-Modal): welche
+// Fischarten und Mutationen wurden jemals gefangen. Wächst nur, wird nie
+// automatisch geleert – bewusst NICHT Teil von hardReset() (überlebt wie
+// Ruten/Köder-Inventar auch einen kompletten Neustart).
+let discoveredSpecies = new Set();
+let discoveredMutations = new Set();
+
 // true zwischen "Angeln starten"/"Nochmal angeln" und dem Beenden per ✕ –
 // steuert, ob beim nächsten Seitenaufruf direkt wieder ins laufende
 // Angel-Fenster gesprungen wird (siehe loadGame/enterGameScreen).
@@ -423,6 +432,8 @@ function saveGame() {
       baitInventory,
       equippedBait,
       promoRedemptions,
+      discoveredSpecies: [...discoveredSpecies],
+      discoveredMutations: [...discoveredMutations],
     }));
   } catch (err) {
     // z. B. Privatmodus ohne localStorage – dann eben ohne Speichern.
@@ -471,6 +482,9 @@ function loadGame() {
         }
       }
     }
+
+    discoveredSpecies = new Set((Array.isArray(s.discoveredSpecies) ? s.discoveredSpecies : []).filter((id) => SPECIES_BY_ID[id]));
+    discoveredMutations = new Set((Array.isArray(s.discoveredMutations) ? s.discoveredMutations : []).filter((id) => MUTATION_BY_ID[id]));
 
     return true;
   } catch (err) {
@@ -522,6 +536,17 @@ const shopBaitsEl = document.getElementById("shop-baits");
 const promoCodeInput = document.getElementById("promo-code-input");
 const btnPromoRedeem = document.getElementById("btn-promo-redeem");
 const promoCodeStatus = document.getElementById("promo-code-status");
+
+const btnFishdex = document.getElementById("btn-fishdex");
+const btnFishdexClose = document.getElementById("btn-fishdex-close");
+const fishdexModal = document.getElementById("fishdex-modal");
+const fishdexTabRound = document.getElementById("fishdex-tab-round");
+const fishdexTabCollection = document.getElementById("fishdex-tab-collection");
+const fishdexRoundView = document.getElementById("fishdex-round-view");
+const fishdexCollectionView = document.getElementById("fishdex-collection-view");
+const fishdexRoundList = document.getElementById("fishdex-round-list");
+const fishdexSpeciesList = document.getElementById("fishdex-species-list");
+const fishdexMutationList = document.getElementById("fishdex-mutation-list");
 
 const canvas = document.getElementById("game-canvas");
 const ctx = canvas.getContext("2d");
@@ -904,6 +929,8 @@ function succeedCatch() {
 
   score += points;
   catches.push({ species, mutation, weightValue, weightGrams, presses, points });
+  discoveredSpecies.add(species.id);
+  if (mutation) discoveredMutations.add(mutation.id);
   updateHud();
 
   gameState = "success";
@@ -1190,6 +1217,76 @@ btnShop.addEventListener("click", () => {
 });
 btnShopClose.addEventListener("click", closeShop);
 shopModal.querySelector(".modal-backdrop").addEventListener("click", closeShop);
+
+// ---------------------------------------------------------------------
+// Fischlexikon (Fishdex): eigenes Modal unter dem Einkaufssymbol. Zeigt
+// die Fänge dieser Runde sowie – getrennt nach Fischarten und Mutationen –
+// alles, was insgesamt schon mal gefangen wurde (discoveredSpecies/
+// discoveredMutations, persistiert). Unentdecktes erscheint als "???".
+// ---------------------------------------------------------------------
+
+function renderFishdexRound() {
+  fishdexRoundList.innerHTML = catches.length
+    ? catches.slice().reverse().map((c) => {
+        const emoji = c.mutation ? c.mutation.prefixEmoji : c.species.emoji;
+        const name = c.mutation ? `${c.mutation.name}-${c.species.name}` : c.species.name;
+        return `
+        <div class="catch-row">
+          <div class="catch-emoji">${emoji}</div>
+          <div class="catch-info">${name} · ${formatWeight(c.weightValue, c.species.unit)} · ${c.presses} Tastendrücke</div>
+          <div class="catch-points">+${c.points}</div>
+        </div>
+      `;
+      }).join("")
+    : `<div class="catch-row"><div class="catch-info">Noch keinen Fisch in dieser Runde gefangen.</div></div>`;
+}
+
+function renderFishdexCollection() {
+  fishdexSpeciesList.innerHTML = FISH_SPECIES.map((s) => {
+    const found = discoveredSpecies.has(s.id);
+    return `
+      <div class="fishdex-entry ${found ? "" : "fishdex-undiscovered"}">
+        <div class="fishdex-emoji">${found ? s.emoji : "❓"}</div>
+        <div class="fishdex-name">${found ? s.name : "???"}</div>
+      </div>
+    `;
+  }).join("");
+
+  fishdexMutationList.innerHTML = MUTATIONS.map((m) => {
+    const found = discoveredMutations.has(m.id);
+    return `
+      <div class="fishdex-entry ${found ? "" : "fishdex-undiscovered"}">
+        <div class="fishdex-emoji">${found ? m.prefixEmoji : "❓"}</div>
+        <div class="fishdex-name">${found ? m.name : "???"}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function showFishdexTab(tab) {
+  const isRound = tab === "round";
+  fishdexTabRound.classList.toggle("fishdex-tab-active", isRound);
+  fishdexTabCollection.classList.toggle("fishdex-tab-active", !isRound);
+  fishdexRoundView.classList.toggle("hidden", !isRound);
+  fishdexCollectionView.classList.toggle("hidden", isRound);
+}
+
+fishdexTabRound.addEventListener("click", () => showFishdexTab("round"));
+fishdexTabCollection.addEventListener("click", () => showFishdexTab("collection"));
+
+function closeFishdex() {
+  fishdexModal.classList.add("hidden");
+}
+
+btnFishdex.addEventListener("click", () => {
+  if (gameState === "biting") return;
+  renderFishdexRound();
+  renderFishdexCollection();
+  showFishdexTab("round");
+  fishdexModal.classList.remove("hidden");
+});
+btnFishdexClose.addEventListener("click", closeFishdex);
+fishdexModal.querySelector(".modal-backdrop").addEventListener("click", closeFishdex);
 
 // ---------------------------------------------------------------------
 // Rendering
@@ -1760,6 +1857,80 @@ function drawCephalopodShape(scale, color, colorDark, menacing) {
   ctx.fill();
 }
 
+// Mückenfisch: Insekten- statt Fischbauplan – segmentierter Hinterleib
+// (spitz nach -x auslaufend), durchscheinendes Flügelpaar, Kopf mit
+// Stechrüssel bei +x und sechs dünne, symmetrisch abgespreizte Beine.
+function drawMosquitoShape(scale, color, colorDark) {
+  const bodyRX = canvas.width * 0.02 * scale;
+  const bodyRY = canvas.width * 0.004 * scale;
+
+  // Hinterleib
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 0.3, 0);
+  ctx.bezierCurveTo(bodyRX * 0.2, -bodyRY * 1.6, -bodyRX * 0.9, -bodyRY * 1.3, -bodyRX * 1.6, 0);
+  ctx.bezierCurveTo(-bodyRX * 0.9, bodyRY * 1.3, bodyRX * 0.2, bodyRY * 1.6, bodyRX * 0.3, 0);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Segmentringe
+  ctx.strokeStyle = colorDark;
+  ctx.lineWidth = Math.max(0.6, bodyRX * 0.05);
+  for (let i = 1; i <= 4; i++) {
+    const x = bodyRX * 0.3 - (bodyRX * 1.9 * i) / 5;
+    ctx.beginPath();
+    ctx.moveTo(x, -bodyRY * 1.3);
+    ctx.lineTo(x, bodyRY * 1.3);
+    ctx.stroke();
+  }
+
+  // Flügelpaar, durchscheinend
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = "#eaf6ff";
+  [-1, 1].forEach((side) => {
+    ctx.beginPath();
+    ctx.ellipse(-bodyRX * 0.1, side * bodyRY * 0.4, bodyRX * 1.1, bodyRY * 2.2, side * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+
+  // Sechs dünne Beine (3 Paare)
+  ctx.strokeStyle = colorDark;
+  ctx.lineWidth = Math.max(0.6, bodyRX * 0.035);
+  ctx.lineCap = "round";
+  [-0.3, 0.1, 0.5].forEach((xf) => {
+    [-1, 1].forEach((side) => {
+      const startX = bodyRX * xf;
+      ctx.beginPath();
+      ctx.moveTo(startX, side * bodyRY * 1.1);
+      ctx.lineTo(startX - bodyRX * 0.25, side * bodyRY * 4.5);
+      ctx.lineTo(startX - bodyRX * 0.05, side * bodyRY * 5.7);
+      ctx.stroke();
+    });
+  });
+
+  // Kopf
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.55, 0, bodyRY * 1.6, 0, Math.PI * 2);
+  ctx.fillStyle = colorDark;
+  ctx.fill();
+
+  // Stechrüssel
+  ctx.strokeStyle = colorDark;
+  ctx.lineWidth = Math.max(0.6, bodyRX * 0.04);
+  ctx.beginPath();
+  ctx.moveTo(bodyRX * 0.9, 0);
+  ctx.lineTo(bodyRX * 1.9, 0);
+  ctx.stroke();
+
+  // Auge
+  ctx.beginPath();
+  ctx.arc(bodyRX * 0.6, -bodyRY * 0.5, Math.max(0.8, bodyRY * 0.7), 0, Math.PI * 2);
+  ctx.fillStyle = "#14171b";
+  ctx.fill();
+}
+
 function drawCreature(species, scale, color, colorDark) {
   switch (species.shape) {
     case "serpent": drawSeaDragon(scale, color, colorDark); break;
@@ -1770,6 +1941,7 @@ function drawCreature(species, scale, color, colorDark) {
     case "disc": drawDiscShape(scale, color, colorDark); break;
     case "cephalopod": drawCephalopodShape(scale, color, colorDark, false); break;
     case "kraken": drawCephalopodShape(scale, color, colorDark, true); break;
+    case "mosquito": drawMosquitoShape(scale, color, colorDark); break;
     default: drawFishShape(scale, color, colorDark);
   }
 }

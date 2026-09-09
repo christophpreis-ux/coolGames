@@ -26,9 +26,9 @@ python3 -m http.server 8080
 - Der **Spielstand wird automatisch gespeichert** (localStorage): Punkte, Fänge, Ruten, Köder-Vorrat und der gewählte Angler überstehen das Schließen der Seite. Warst du gerade mitten in einer Angel-Session, landest du beim nächsten Öffnen direkt wieder im Spiel (mit einem frischen Wurf statt einer mitten drin abgebrochenen Animation).
 - "Angler wechseln" auf der Zusammenfassung setzt den laufenden Run vollständig zurück, bevor es zurück zur Auswahl geht – so bleibt man nie in einem Zustand hängen, der beim nächsten Laden wieder mitten ins Spiel statt zur Auswahl springt.
 
-## Die 19 Fisch-/Meeresarten
+## Die 20 Fisch-/Meeresarten
 
-Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art braucht, desto mehr Punkte bringt sie. Welche Art anbeißt, wird zufällig (gewichtet nach Seltenheit) bestimmt. Jede Art hat außerdem eine eigene, art-typische Silhouette statt nur einer anderen Farbe – Haie, Thunfische, Schwertfische, Wale, Scheibenfische (Mondfisch) und Kopffüßer (Kalmare) sehen alle grundlegend anders aus:
+Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art braucht, desto mehr Punkte bringt sie. Welche Art anbeißt, wird zufällig (gewichtet nach Seltenheit) bestimmt. Jede Art hat außerdem eine eigene, art-typische Silhouette statt nur einer anderen Farbe – Haie, Thunfische, Schwertfische, Wale, Scheibenfische (Mondfisch), Kopffüßer (Kalmare) und sogar ein Insekt (Mückenfisch) sehen alle grundlegend anders aus:
 
 | Fisch | Tastendrücke | Gewicht | Punkte |
 |---|---|---|---|
@@ -37,6 +37,7 @@ Von häufig/leicht bis selten/legendär – je mehr Tastendrücke eine Art brauc
 | 🐠 Karpfen | 4 | 1,5–8 kg | 180 |
 | 🐠 Hecht | 5 | 2–9 kg | 260 |
 | 🐡 Lachs | 6 | 3–14 kg | 360 |
+| 🦟 Mückenfisch | 6 | 1–5 g | 340 |
 | 🐡 Blauflossen-Thunfisch | 7 | 50–300 kg | 480 |
 | 🐟 Schwertfisch | 8 | 50–150 kg | 590 |
 | 🦈 Weißer Hai | 9 | 500–1100 kg | 700 |
@@ -56,6 +57,8 @@ Zwei Arten sind exklusiv an eine bestimmte Rute gebunden – ohne sie tauchen si
 
 - **Seedrache** (nur mit Drachen-Angel): keine kleine Fischform, sondern eine große, gewellte Seeschlange mit Drachenkopf und Hörnern.
 - **Kraken** (nur mit Kraken-Angel): der echte Endboss – ein riesiger, bedrohlicher Tintenfisch mit gezacktem Mantel, glühend roten Augen und sieben peitschenden, saugnapfbesetzten Tentakeln. Größer und wertvoller als jeder andere Fang im Spiel.
+
+Der **Mückenfisch** ist trotz seiner geringen Größe (kleinste Silhouette im Spiel) überdurchschnittlich viel wert – kein Fisch-, sondern ein Insektenbauplan: segmentierter Hinterleib, durchscheinendes Flügelpaar, sechs dünne Beine und Stechrüssel statt Flossen und Schuppen.
 
 ## Mutationen
 
@@ -98,6 +101,15 @@ Alternativ lässt es sich auch gezielt auslösen: Im Angelladen gibt es oben ein
 
 Ein falscher oder unbekannter Code zeigt "Diesen Code gibt's nicht." in Rot an. Jeder Code lässt sich **maximal 2× pro Stunde** einlösen (rollierendes Zeitfenster) – ein dritter Versuch zeigt an, wie lange noch gewartet werden muss. Das Limit übersteht auch ein Neuladen der Seite.
 
+## Fischlexikon
+
+Unter dem 🛒-Shopsymbol sitzt ein eigenes 📖-Symbol – öffnet das **Fischlexikon**, ein eigenständiges Modal getrennt vom Angelladen, mit zwei Reitern:
+
+- **Diese Runde**: alle Fänge der aktuell laufenden Session, wie auf der Zusammenfassung.
+- **Sammlung**: eine dauerhafte Pokédex-artige Übersicht über **alle** Fischarten und **alle** Mutationen, die du jemals gefangen hast – in zwei getrennten Kategorien. Noch nie Gefangenes erscheint als "???" mit ❓-Symbol, abgedunkelt.
+
+Die Sammlung wächst über die gesamte Spielzeit hinweg und übersteht sowohl das Schließen der Seite als auch einen kompletten Neustart ("Neu starten" nach leerem Köcher) – nur Punkte, Ruten und Köder werden dabei zurückgesetzt, die entdeckten Arten/Mutationen bleiben erhalten.
+
 ## Angelladen
 
 Über das 🛒-Symbol im Spiel öffnest du den Laden. Dort kannst du dir mit deinen gesammelten Punkten bessere Ruten kaufen – jede mit eigenem Design, sowohl im Laden als auch als Rute in der Szene. Sie brauchen weniger Tastendrücke und geben mehr Zeit pro Druck; die Belohnung richtet sich aber immer nach der Fischart, nicht nach der Rute:
@@ -134,9 +146,11 @@ Ist der Köcher leer, kannst du nicht mehr werfen. Reicht das Guthaben noch für
 
 ## Technik
 
-Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Der Angler selbst ist eine richtige kleine Figur (Kopf mit Gesicht, Torso, zwei Arme über `drawLimb` mit angedeutetem Ellbogen, zwei Beine mit Füßen) statt nur eines Rumpfes mit Kopf. `drawHead` bekommt einen `expression`-Parameter ("neutral"/"strain"/"happy"/"shock") und zeichnet Augen, Augenbrauen und Mund passend zum Spielzustand. Beim Auswerfen läuft eine kurze Ausholen-und-Wurf-Animation (`CAST_ANIM_DURATION`, mit `easeOutBack`-Überschwung am Ende), während der die Rute an der animierten Hand hängt und Schwimmer/Angelschnur erst nach dem Wurf erscheinen; während des Drills (Tastenfolge) kurbeln beide Arme rhythmisch und machen bei jedem korrekten Tastendruck (`lastTugTime`) einen kurzen, abklingenden Ruck nach hinten, während der Oberkörper leicht zurücklehnt. Jede Art bekommt eine von acht art-typischen Silhouetten (`drawCreature` wählt anhand von `species.shape`): normaler Fisch (Torpedokörper, gegabelte Schwanzflosse), Thunfisch (schlank, Halbmondschwanz, Finlets), Schwertfisch (langer Schnabel, Segelflosse), Hai (spitze Schnauze, hohe Rückenflosse, asymmetrischer Schwanz, Kiemenspalten), Wal (rundlicher Körper, horizontale Fluke, Blasloch, Paddelflosse), Scheibenfisch (Mondfisch: rund, gespiegelte Riesenflossen, Stummelschwanz), Kopffüßer (Mantel + Tentakel, für Riesen-/Kolosskalmar) und die beiden Unikate Seedrache (Seeschlange mit Drachenkopf) und Kraken (überdimensionaler, gezackter Tintenfisch mit glühenden Augen). Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (Seedrache/Kraken nur aus dem Pool, wenn die passende Rute ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.
+Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Der Angler selbst ist eine richtige kleine Figur (Kopf mit Gesicht, Torso, zwei Arme über `drawLimb` mit angedeutetem Ellbogen, zwei Beine mit Füßen) statt nur eines Rumpfes mit Kopf. `drawHead` bekommt einen `expression`-Parameter ("neutral"/"strain"/"happy"/"shock") und zeichnet Augen, Augenbrauen und Mund passend zum Spielzustand. Beim Auswerfen läuft eine kurze Ausholen-und-Wurf-Animation (`CAST_ANIM_DURATION`, mit `easeOutBack`-Überschwung am Ende), während der die Rute an der animierten Hand hängt und Schwimmer/Angelschnur erst nach dem Wurf erscheinen; während des Drills (Tastenfolge) kurbeln beide Arme rhythmisch und machen bei jedem korrekten Tastendruck (`lastTugTime`) einen kurzen, abklingenden Ruck nach hinten, während der Oberkörper leicht zurücklehnt. Jede Art bekommt eine von neun art-typischen Silhouetten (`drawCreature` wählt anhand von `species.shape`): normaler Fisch (Torpedokörper, gegabelte Schwanzflosse), Thunfisch (schlank, Halbmondschwanz, Finlets), Schwertfisch (langer Schnabel, Segelflosse), Hai (spitze Schnauze, hohe Rückenflosse, asymmetrischer Schwanz, Kiemenspalten), Wal (rundlicher Körper, horizontale Fluke, Blasloch, Paddelflosse), Scheibenfisch (Mondfisch: rund, gespiegelte Riesenflossen, Stummelschwanz), Kopffüßer (Mantel + Tentakel, für Riesen-/Kolosskalmar), Insekt (Mückenfisch: `drawMosquitoShape` – segmentierter Hinterleib, durchscheinende Flügel, sechs Beine, Stechrüssel statt Flossen) und die beiden Unikate Seedrache (Seeschlange mit Drachenkopf) und Kraken (überdimensionaler, gezackter Tintenfisch mit glühenden Augen). Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (Seedrache/Kraken nur aus dem Pool, wenn die passende Rute ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.
 
 Das Alien-Event läuft komplett unabhängig von der Fisch-/Ruten-Logik: `maybeRollAlienEvent()` wird jeden Frame aus der Hauptschleife aufgerufen, würfelt aber nur einmal pro `ALIEN_CHECK_INTERVAL` (60s) via `performance.now()`-Differenz. Die Alien-Mutation selbst ist ein ganz normaler Eintrag in `MUTATIONS` mit `chance: 0` und `eventOnly: true` – `pickMutation()` schließt `eventOnly`-Einträge aus der normalen gewichteten Auswahl aus, gibt aber sofort `MUTATION_BY_ID.alien` zurück, solange `alienEventUntil` in der Zukunft liegt. Dadurch reicht ein einziges globales Zeitfenster, um *jede* Art (nicht nur eine feste "Alien-Art") für die Dauer des Events grün und mit +300 % Punkten zu färben, ganz ohne Sonderfall in der Fischauswahl selbst.
+
+Das Fischlexikon nutzt zwei zusätzliche `Set`s, `discoveredSpecies` und `discoveredMutations`, die in `succeedCatch()` bei jedem Fang befüllt und (als Arrays) über `saveGame()`/`loadGame()` persistiert werden – bewusst unabhängig vom Punkte-/Ruten-/Köder-Reset in `hardReset()`, damit die Sammlung wie ein echtes Pokédex nie schrumpft. Die Rendering-Funktionen (`renderFishdexCollection()`) iterieren einfach über die kompletten `FISH_SPECIES`- und `MUTATIONS`-Arrays und prüfen pro Eintrag nur `discoveredSpecies.has(id)`/`discoveredMutations.has(id)`, um zwischen echtem Eintrag und "???"-Platzhalter zu unterscheiden.
 
 Promo-Codes teilen sich für "HIGH ALIENS" denselben `startAlienEvent()`-Aufruf wie der natürliche Zufallswurf, und "LUCKY" setzt nur `luckyBuffUntil`, das `pickMutation()` als Multiplikator auf alle `m.chance`-Werte anwendet (der Alien-Event-Zweig bleibt davon unberührt, da er vorher separat abgefragt wird). `PROMO_CODES` ist eine einfache Objekt-Map von exaktem Code-Text auf `{ message, apply() }`; der Vergleich in `redeemPromoCode()` erfolgt bewusst ohne `.toUpperCase()`, Groß-/Kleinschreibung zählt also mit. Der globale `keydown`-Handler für die Angel-Tasten ignoriert Events, deren `target` ein `<input>`/`<textarea>` ist, damit Tippen im Promo-Code-Feld (z. B. der Buchstabe „A“) nicht versehentlich als Angel-Steuerung oder „Weiter angeln“ interpretiert wird.
 
