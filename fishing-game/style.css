@@ -300,6 +300,35 @@ html, body {
   50% { box-shadow: 0 0 24px rgba(120,255,138,0.6); }
 }
 
+#zombie-banner {
+  position: absolute;
+  top: 116px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  max-width: min(560px, 86vw);
+  background: rgba(28,32,16,0.92);
+  border: 1px solid rgba(150,170,80,0.6);
+  color: #c9d69a;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 0 16px rgba(150,170,80,0.35);
+  pointer-events: none;
+  animation: zombie-banner-pulse 1.6s ease-in-out infinite;
+}
+
+#zombie-banner.hidden {
+  display: none;
+}
+
+@keyframes zombie-banner-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(150,170,80,0.25); }
+  50% { box-shadow: 0 0 24px rgba(150,170,80,0.5); }
+}
+
 #qte-panel {
   position: absolute;
   bottom: 60px;

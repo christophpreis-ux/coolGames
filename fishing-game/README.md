@@ -83,17 +83,20 @@ Nach jedem Fang besteht eine kleine Chance, dass es sich um eine seltene Variant
 | 🌈 Regenbogenglanz | 0,4 % | +200 % Punkte, glitzert |
 | 🌌 Kosmisch | 0,2 % | +250 % Punkte, glitzert |
 
-Dazu kommt eine 16. Mutation, die **nicht** über die normale Zufallsauswahl erreichbar ist:
+Dazu kommen zwei weitere Mutationen, die **nicht** über die normale Zufallsauswahl erreichbar sind, sondern nur während eines Events:
 
 | Mutation | Chance | Effekt |
 |---|---|---|
 | 👽 Alien | nur im Alien-Event | +300 % Punkte, grün, glitzert |
+| 🧟 Zombie | nur im Zombie-Event | +120 % Punkte, fauliges Grünbraun |
 
-## Alien-Event
+## Alien-Event & Zombie-Event
 
 Jede Minute Spielzeit besteht eine 1-zu-100-Chance, dass ein **Alien-Event** losgeht – ein Banner am oberen Bildschirmrand kündigt es an. Für die nächsten 25 Sekunden bekommt **jeder** gefangene Fisch garantiert die Alien-Mutation: grün gefärbt, glitzernd, +300 % Punkte – egal welche Art gerade anbeißt und egal welche Rute/Köder ausgerüstet ist. Das Event ist reiner Glückszufall und komplett unabhängig vom sonstigen Fortschritt (Ruten, Köder, Punkte).
 
-Alternativ lässt es sich auch gezielt auslösen: Im Angelladen gibt es oben ein **Promo-Code**-Feld. Der Code muss exakt (inklusive Groß-/Kleinschreibung) eingegeben werden:
+Nach demselben Prinzip gibt's das **Zombie-Event**: ebenfalls einmal pro Minute Spielzeit geprüft, aber mit 20 % Wahrscheinlichkeit – also deutlich häufiger als das Alien-Event. Dafür ist die Zombie-Mutation spürbar schwächer (+120 % statt +300 % Punkte, kein Glitzern). Beide Events laufen komplett unabhängig voneinander; sollten sie zufällig gleichzeitig aktiv sein, hat Alien Vorrang.
+
+Alternativ lässt sich das Alien-Event auch gezielt auslösen: Im Angelladen gibt es oben ein **Promo-Code**-Feld. Der Code muss exakt (inklusive Groß-/Kleinschreibung) eingegeben werden:
 
 | Code | Effekt |
 |---|---|
@@ -150,6 +153,8 @@ Ist der Köcher leer, kannst du nicht mehr werfen. Reicht das Guthaben noch für
 Reines HTML/CSS/JavaScript, kein Build-Schritt, keine externen Abhängigkeiten. Die Szene (Ufer, Wasser, Angler, Schwimmer, Fischsprung, Platsch-Animation, Fisch-über-Kopf-Pose, Glitzer-Effekte) wird komplett auf Canvas 2D gezeichnet, ebenso die Ruten-Icons im Laden. Der Angler selbst ist eine richtige kleine Figur (Kopf mit Gesicht, Torso, zwei Arme über `drawLimb` mit angedeutetem Ellbogen, zwei Beine mit Füßen) statt nur eines Rumpfes mit Kopf. `drawHead` bekommt einen `expression`-Parameter ("neutral"/"strain"/"happy"/"shock") und zeichnet Augen, Augenbrauen und Mund passend zum Spielzustand. Beim Auswerfen läuft eine kurze Ausholen-und-Wurf-Animation (`CAST_ANIM_DURATION`, mit `easeOutBack`-Überschwung am Ende), während der die Rute an der animierten Hand hängt und Schwimmer/Angelschnur erst nach dem Wurf erscheinen; während des Drills (Tastenfolge) kurbeln beide Arme rhythmisch und machen bei jedem korrekten Tastendruck (`lastTugTime`) einen kurzen, abklingenden Ruck nach hinten, während der Oberkörper leicht zurücklehnt. Jede Art bekommt eine von neun art-typischen Silhouetten (`drawCreature` wählt anhand von `species.shape`): normaler Fisch (Torpedokörper, gegabelte Schwanzflosse), Thunfisch (schlank, Halbmondschwanz, Finlets), Schwertfisch (langer Schnabel, Segelflosse), Hai (spitze Schnauze, hohe Rückenflosse, asymmetrischer Schwanz, Kiemenspalten), Wal (rundlicher Körper, horizontale Fluke, Blasloch, Paddelflosse), Scheibenfisch (Mondfisch: rund, gespiegelte Riesenflossen, Stummelschwanz), Kopffüßer (Mantel + Tentakel, für Riesen-/Kolosskalmar), Insekt (Mückenfisch: `drawMosquitoShape` – segmentierter Hinterleib, durchscheinende Flügel, sechs Beine, Stechrüssel statt Flossen) und die beiden Unikate Seedrache (Seeschlange mit Drachenkopf) und Kraken (überdimensionaler, gezackter Tintenfisch mit glühenden Augen). Die Tastenfolgen-Logik (Sequenz, schrumpfendes Zeitfenster, Erfolg/Fehlschlag) läuft über einen `requestAnimationFrame`-Loop, der Fristen gegen `performance.now()` prüft. Fischarten und Mutationen werden unabhängig voneinander gewichtet zufällig ausgewählt (Seedrache/Kraken nur aus dem Pool, wenn die passende Rute ausgerüstet ist); gemischte Gewichtseinheiten (g/kg/t) werden für die Gesamtstatistik intern in Gramm normalisiert und dann passend formatiert.
 
 Das Alien-Event läuft komplett unabhängig von der Fisch-/Ruten-Logik: `maybeRollAlienEvent()` wird jeden Frame aus der Hauptschleife aufgerufen, würfelt aber nur einmal pro `ALIEN_CHECK_INTERVAL` (60s) via `performance.now()`-Differenz. Die Alien-Mutation selbst ist ein ganz normaler Eintrag in `MUTATIONS` mit `chance: 0` und `eventOnly: true` – `pickMutation()` schließt `eventOnly`-Einträge aus der normalen gewichteten Auswahl aus, gibt aber sofort `MUTATION_BY_ID.alien` zurück, solange `alienEventUntil` in der Zukunft liegt. Dadurch reicht ein einziges globales Zeitfenster, um *jede* Art (nicht nur eine feste "Alien-Art") für die Dauer des Events grün und mit +300 % Punkten zu färben, ganz ohne Sonderfall in der Fischauswahl selbst.
+
+Das Zombie-Event ist eine reine Kopie dieses Musters mit eigenen Konstanten und eigenem Zeitfenster (`maybeRollZombieEvent()`, `zombieEventUntil`, `ZOMBIE_EVENT_CHANCE = 0.2` statt `0.01`) und einem zweiten `eventOnly`-Mutations-Eintrag (`zombie`, schwächerer Multiplikator, kein Glitzern). `pickMutation()` prüft Alien zuerst und Zombie danach, bevor sie überhaupt in die normale gewichtete Auswahl fällt – bei einem (unwahrscheinlichen) gleichzeitig aktiven Fenster gewinnt also immer Alien.
 
 Das Fischlexikon nutzt zwei zusätzliche `Set`s, `discoveredSpecies` und `discoveredMutations`, die in `succeedCatch()` bei jedem Fang befüllt und (als Arrays) über `saveGame()`/`loadGame()` persistiert werden – bewusst unabhängig vom Punkte-/Ruten-/Köder-Reset in `hardReset()`, damit die Sammlung wie ein echtes Pokédex nie schrumpft. Die Rendering-Funktionen (`renderFishdexCollection()`) iterieren einfach über die kompletten `FISH_SPECIES`- und `MUTATIONS`-Arrays und prüfen pro Eintrag nur `discoveredSpecies.has(id)`/`discoveredMutations.has(id)`, um zwischen echtem Eintrag und "???"-Platzhalter zu unterscheiden.
 

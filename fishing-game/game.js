@@ -30,6 +30,14 @@ const ALIEN_EVENT_CHANCE = 0.01; // 1%
 const ALIEN_EVENT_DURATION = 25; // Sekunden, die das Fenster offen bleibt
 const ALIEN_BANNER_DURATION = 4.5; // Sekunden, die die Meldung eingeblendet bleibt
 
+// Zombie-Event: dasselbe Prinzip wie das Alien-Event (eigene Mutation,
+// erzwungen für die Dauer des Fensters), aber deutlich häufiger und dafür
+// spürbar schwächer – die "billigere" Variante des Alien-Events.
+const ZOMBIE_CHECK_INTERVAL = 60; // Sekunden zwischen den Würfen
+const ZOMBIE_EVENT_CHANCE = 0.2; // 20%
+const ZOMBIE_EVENT_DURATION = 25; // Sekunden, die das Fenster offen bleibt
+const ZOMBIE_BANNER_DURATION = 4.5; // Sekunden, die die Meldung eingeblendet bleibt
+
 // Lucky-Buff (per Promo-Code "LUCKY"): verdreifacht für eine Weile die
 // Chance auf JEDE normale Mutation (nicht nur eine feste), indem die
 // Prozent-Werte in pickMutation() mit dem Multiplikator skaliert werden.
@@ -148,6 +156,13 @@ const MUTATIONS = [
   { id: "alien", name: "Alien", prefixEmoji: "👽", chance: 0, eventOnly: true,
     pointMultiplier: 4.0, weightMultiplier: 1.2, sizeMultiplier: 1.15,
     colorOverride: "#5aff8a", colorDarkOverride: "#1f9e52", sparkle: true },
+
+  // Zombie: genau wie Alien ein reiner Event-Eintrag (chance 0, eventOnly),
+  // aber die schwächere, häufigere Variante – fauliges Grünbraun statt
+  // Glitzern, deutlich weniger Bonus.
+  { id: "zombie", name: "Zombie", prefixEmoji: "🧟", chance: 0, eventOnly: true,
+    pointMultiplier: 2.2, weightMultiplier: 1.1, sizeMultiplier: 1.05,
+    colorOverride: "#6b7a3f", colorDarkOverride: "#3a4522" },
 ];
 
 const MUTATION_BY_ID = {};
@@ -294,9 +309,16 @@ function pickFishSpecies() {
 
 function pickMutation() {
   // Alien-Event aktiv: JEDER gefangene Fisch bekommt garantiert die
-  // Alien-Mutation, egal welche Art gerade anbeißt.
+  // Alien-Mutation, egal welche Art gerade anbeißt. Hat Vorrang vor einem
+  // (seltenen, gleichzeitig laufenden) Zombie-Event.
   if (alienEventUntil > performance.now()) {
     return MUTATION_BY_ID.alien;
+  }
+
+  // Zombie-Event aktiv: JEDER gefangene Fisch bekommt garantiert die
+  // (schwächere) Zombie-Mutation.
+  if (zombieEventUntil > performance.now()) {
+    return MUTATION_BY_ID.zombie;
   }
 
   // Lucky-Buff aktiv: alle normalen Mutationschancen verdreifacht.
@@ -384,6 +406,8 @@ let lastTugTime = 0;   // performance.now() des letzten erfolgreichen Tastendruc
 
 let lastAlienCheck = 0;  // performance.now() des letzten Alien-Würfelwurfs
 let alienEventUntil = 0; // performance.now(), bis wann das Alien-Fenster offen ist (0/abgelaufen = inaktiv)
+let lastZombieCheck = 0;  // performance.now() des letzten Zombie-Würfelwurfs
+let zombieEventUntil = 0; // performance.now(), bis wann das Zombie-Fenster offen ist (0/abgelaufen = inaktiv)
 let luckyBuffUntil = 0;  // performance.now(), bis wann der Lucky-Buff (3-faches Mutationsglück) aktiv ist
 
 // Persistiert (siehe saveGame/loadGame): { [code]: number[] } – Date.now()-
@@ -517,6 +541,7 @@ const hudRod = document.getElementById("hud-rod");
 const hudBait = document.getElementById("hud-bait");
 const statusText = document.getElementById("status-text");
 const alienBanner = document.getElementById("alien-banner");
+const zombieBanner = document.getElementById("zombie-banner");
 const qtePanel = document.getElementById("qte-panel");
 const qteKeysEl = document.getElementById("qte-keys");
 const qteTimerFill = document.getElementById("qte-timerbar-fill");
@@ -723,6 +748,8 @@ function enterGameScreen() {
   showScreen("game");
   lastAlienCheck = performance.now();
   alienEventUntil = 0;
+  lastZombieCheck = performance.now();
+  zombieEventUntil = 0;
   luckyBuffUntil = 0;
   requestAnimationFrame(() => {
     resizeCanvas();
@@ -2347,6 +2374,30 @@ function maybeRollAlienEvent(now) {
 }
 
 // ---------------------------------------------------------------------
+// Zombie-Event
+// ---------------------------------------------------------------------
+
+function showZombieBanner() {
+  zombieBanner.textContent = "🧟 Zombie-Event! Jeder Fisch, den du jetzt fängst, wird zum Zombie-Mutanten!";
+  zombieBanner.classList.remove("hidden");
+  setTimeout(() => zombieBanner.classList.add("hidden"), ZOMBIE_BANNER_DURATION * 1000);
+}
+
+function startZombieEvent(now) {
+  zombieEventUntil = now + ZOMBIE_EVENT_DURATION * 1000;
+  showZombieBanner();
+}
+
+function maybeRollZombieEvent(now) {
+  if (now - lastZombieCheck < ZOMBIE_CHECK_INTERVAL * 1000) return;
+  lastZombieCheck = now;
+  if (zombieEventUntil > now) return; // Fenster läuft schon
+  if (Math.random() < ZOMBIE_EVENT_CHANCE) {
+    startZombieEvent(now);
+  }
+}
+
+// ---------------------------------------------------------------------
 // Promo-Codes
 // ---------------------------------------------------------------------
 // Groß-/Kleinschreibung zählt bewusst mit (kein .toUpperCase() beim
@@ -2417,6 +2468,7 @@ promoCodeInput.addEventListener("keydown", (e) => {
 
 function loop(now) {
   maybeRollAlienEvent(now);
+  maybeRollZombieEvent(now);
 
   if (gameState === "casting" && now >= biteDeadline) {
     startBite();
