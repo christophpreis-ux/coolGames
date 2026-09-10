@@ -44,6 +44,8 @@ let distanceFactor = 0; // akkumulierte, auflösungsunabhängige Strecke (siehe 
 let playerY = 0;        // Bildschirm-Y der Füße (= aktuelle Dachhöhe im Stand)
 let playerVY = 0;
 let falling = false;    // true = in der Luft (gesprungen ODER Kante ohne Sprung verpasst)
+let wallHit = false;    // true = gegen eine Hauswand geprallt statt zu landen -- kein Sprung mehr möglich, fällt benommen runter
+let wallHitAt = 0;      // performance.now() des Aufpralls, treibt die Taumel-Rotation
 let jumpsUsed = 0;      // 0/1/2 – steuert den Doppelsprung
 let lastGroundedAt = 0; // performance.now() der letzten Landung, fürs Coyote-Zeitfenster
 let runCyclePhase = 0;  // treibt die Beinbewegung der Lauf-Animation
@@ -211,6 +213,7 @@ function startRun() {
   distanceFactor = 0;
   jumpsUsed = 0;
   falling = false;
+  wallHit = false;
   runCyclePhase = 0;
 
   buildings = [{ x: 0, width: canvas.width * (PLAYER_SCREEN_X_FACTOR + 0.35), roofY: canvas.height * 0.56 }];
@@ -229,7 +232,7 @@ function startRun() {
 }
 
 function triggerJump(now) {
-  if (gameState !== "running") return;
+  if (gameState !== "running" || wallHit) return;
   tapHint.classList.add("hidden");
 
   const withinCoyote = falling && jumpsUsed === 0 && now - lastGroundedAt < COYOTE_TIME_MS;
@@ -273,6 +276,17 @@ canvas.addEventListener("pointerdown", () => {
   if (gameState === "running") triggerJump(performance.now());
 });
 
+// Gegen eine Hauswand geprallt statt sauber gelandet (oder durchgeflogen):
+// kurzer Rückprall nach oben, danach taumelt die Figur benommen (Hände am
+// Kopf, siehe drawPlayer) nach unten in den Fall-Tod. Kein erneuter Sprung
+// mehr möglich (siehe triggerJump).
+function triggerWallHit(now) {
+  wallHit = true;
+  wallHitAt = now;
+  playerVY = -canvas.height * 0.28;
+  tapHint.classList.add("hidden");
+}
+
 // ---------------------------------------------------------------------
 // Physik-Update
 // ---------------------------------------------------------------------
@@ -293,23 +307,36 @@ function updatePhysics(dt, now) {
     playerVY += GRAVITY_FACTOR * canvas.height * dt;
     playerY += playerVY * dt;
 
-    // Nur landen, wenn die Dachhöhe in GENAU diesem Frame von oben erreicht
-    // wird (prevPlayerY war noch über dem Dach). Ohne dieses "von oben"-
-    // Kriterium würde ein höheres Gebäude, das unter die feste Spielerposition
-    // scrollt, während man schon TIEFER als sein Dach gefallen ist, die Figur
-    // fälschlich nach oben auf das Dach schnappen lassen -- sah aus wie ein
-    // automatischer Katapultsprung an der Hauswand und machte echtes Springen
-    // überflüssig, weil man so ziemlich jedes Dach "automatisch" erreichte.
-    const ground = groundYAt(playerScreenX);
-    if (ground && playerVY >= 0 && prevPlayerY <= ground.roofY && playerY >= ground.roofY) {
-      playerY = ground.roofY;
-      playerVY = 0;
-      falling = false;
-      jumpsUsed = 0;
-      lastGroundedAt = now;
-    } else if (playerY > canvas.height * DEATH_Y_FACTOR) {
-      endRun();
-      return;
+    if (wallHit) {
+      // Bereits benommen von einem Wandtreffer -- nur noch runterfallen,
+      // keine Landung und kein zweiter Wandtreffer mehr möglich.
+      if (playerY > canvas.height * DEATH_Y_FACTOR) {
+        endRun();
+        return;
+      }
+    } else {
+      // Nur landen, wenn die Dachhöhe in GENAU diesem Frame von oben
+      // erreicht wird (prevPlayerY war noch über dem Dach). Ohne dieses
+      // "von oben"-Kriterium würde ein höheres Gebäude, das unter die feste
+      // Spielerposition scrollt, während man schon TIEFER als sein Dach
+      // gefallen ist, die Figur fälschlich nach oben auf das Dach schnappen
+      // lassen -- sah aus wie ein automatischer Katapultsprung an der
+      // Hauswand und machte echtes Springen überflüssig.
+      const ground = groundYAt(playerScreenX);
+      if (ground && playerVY >= 0 && prevPlayerY <= ground.roofY && playerY >= ground.roofY) {
+        playerY = ground.roofY;
+        playerVY = 0;
+        falling = false;
+        jumpsUsed = 0;
+        lastGroundedAt = now;
+      } else if (ground && playerY > ground.roofY) {
+        // Hier läge die Figur unterhalb der Dachkante, also seitlich in der
+        // Hauswand -- statt einfach durchzufliegen, gibt's jetzt Aufprall.
+        triggerWallHit(now);
+      } else if (playerY > canvas.height * DEATH_Y_FACTOR) {
+        endRun();
+        return;
+      }
     }
   } else {
     const ground = groundYAt(playerScreenX);
@@ -378,10 +405,24 @@ function drawBuildings() {
   }
 }
 
+function drawDizzyStar(cx, cy, r) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    ctx.lineTo(Math.cos(a + Math.PI) * r, Math.sin(a + Math.PI) * r);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Läufer-Figur: einfache, gut lesbare Seitenansicht-Silhouette statt
 // eines detaillierten Gesichts – bei diesem Tempo zählt vor allem die
-// klare Pose (Lauf-Zyklus am Boden, angezogene Beine in der Luft).
-function drawPlayer() {
+// klare Pose (Lauf-Zyklus am Boden, angezogene Beine in der Luft, taumelnd
+// mit Händen am Kopf nach einem Wandtreffer).
+function drawPlayer(now) {
   const x = canvas.width * PLAYER_SCREEN_X_FACTOR;
   const scale = canvas.height * 0.001;
 
@@ -394,7 +435,10 @@ function drawPlayer() {
 
   ctx.save();
   ctx.translate(x, playerY);
-  ctx.rotate(falling ? -0.1 : 0.05);
+
+  const dazedElapsed = wallHit ? (now - wallHitAt) / 1000 : 0;
+  const dazedSpin = dazedElapsed * 3.4;
+  ctx.rotate(wallHit ? dazedSpin : falling ? -0.1 : 0.05);
 
   const suitColor = "#e8794a";
   const suitDark = "#b3552c";
@@ -405,7 +449,13 @@ function drawPlayer() {
   ctx.lineWidth = 6 * scale;
   ctx.lineCap = "round";
   ctx.beginPath();
-  if (falling) {
+  if (wallHit) {
+    // locker herabhängend statt angezogen -- benommen, keine Kontrolle mehr
+    ctx.moveTo(0, hipY);
+    ctx.lineTo(-5 * scale, hipY * 0.1);
+    ctx.moveTo(0, hipY);
+    ctx.lineTo(5 * scale, hipY * 0.05);
+  } else if (falling) {
     ctx.moveTo(0, hipY);
     ctx.lineTo(-9 * scale, hipY * 0.35);
     ctx.moveTo(0, hipY);
@@ -434,7 +484,13 @@ function drawPlayer() {
   ctx.lineWidth = 5 * scale;
   ctx.lineCap = "round";
   ctx.beginPath();
-  if (falling) {
+  if (wallHit) {
+    // Hände an den Kopf -- "autsch", benommen vom Aufprall
+    ctx.moveTo(-6 * scale, shoulderY + 4 * scale);
+    ctx.lineTo(-headR * 0.9, headCy + headR * 0.35);
+    ctx.moveTo(6 * scale, shoulderY + 4 * scale);
+    ctx.lineTo(headR * 0.9, headCy + headR * 0.35);
+  } else if (falling) {
     ctx.moveTo(-6 * scale, shoulderY + 4 * scale);
     ctx.lineTo(-15 * scale, shoulderY - 8 * scale);
     ctx.moveTo(6 * scale, shoulderY + 4 * scale);
@@ -459,13 +515,24 @@ function drawPlayer() {
   ctx.arc(headR * 0.4, headCy, headR * 0.14, 0, Math.PI * 2);
   ctx.fill();
 
+  // Benommenheits-Sternchen, kreisen über dem Kopf
+  if (wallHit) {
+    ctx.strokeStyle = "#f2c94c";
+    ctx.lineWidth = Math.max(1, scale * 1.2);
+    [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].forEach((offset) => {
+      const a = dazedSpin * 2.2 + offset;
+      const orbitR = headR * 1.9;
+      drawDizzyStar(Math.cos(a) * orbitR, headCy - headR * 0.6 + Math.sin(a) * orbitR * 0.4, headR * 0.22);
+    });
+  }
+
   ctx.restore();
 }
 
-function render() {
+function render(now) {
   drawBackground();
   drawBuildings();
-  drawPlayer();
+  drawPlayer(now);
 }
 
 // ---------------------------------------------------------------------
@@ -480,7 +547,7 @@ function loop(now) {
     updatePhysics(dt, now);
   }
 
-  render();
+  render(now);
 
   if (gameState === "running") {
     requestAnimationFrame(loop);
