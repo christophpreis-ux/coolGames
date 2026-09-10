@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Jumper</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="screen-start" class="screen active">
+    <h1>City Jumper</h1>
+    <p class="subtitle">Lauf über die Dächer der Stadt, so weit du kannst.</p>
+
+    <div id="highscore-box">Rekord: <b id="highscore-value">0</b> m</div>
+
+    <button id="btn-start" class="primary-btn">Loslaufen</button>
+
+    <div class="how-to">
+      <h2>So funktioniert's</h2>
+      <ul>
+        <li>Deine Figur läuft automatisch immer weiter nach vorne – und wird dabei stetig schneller.</li>
+        <li>Drück die <b>Leertaste</b> (oder tippe/klicke), um über die Lücke zum nächsten Dach zu springen.</li>
+        <li>Drückst du die Leertaste noch einmal, während du in der Luft bist, machst du einen <b>Doppelsprung</b> – für die ganz breiten Lücken.</li>
+        <li>Verpasst du ein Dach, fällst du runter – dann ist der Lauf vorbei.</li>
+        <li>Je weiter du kommst, desto knapper wird die Zeit zum Reagieren, weil alles schneller wird.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="screen-game" class="screen">
+    <div id="hud">
+      <div id="hud-score">0 m</div>
+      <div id="hud-highscore">Rekord: 0 m</div>
+    </div>
+    <canvas id="game-canvas"></canvas>
+    <div id="tap-hint">Leertaste / Tippen zum Springen</div>
+  </section>
+
+  <section id="screen-over" class="screen">
+    <h1 id="over-title">Abgestürzt!</h1>
+    <div id="over-stats">
+      <div class="stat-row"><span>Strecke</span><b id="over-score">0 m</b></div>
+      <div class="stat-row"><span>Rekord</span><b id="over-highscore">0 m</b></div>
+    </div>
+    <div id="new-record-banner" class="hidden">🏆 Neuer Rekord!</div>
+    <button id="btn-restart" class="primary-btn">Nochmal springen</button>
+  </section>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>
