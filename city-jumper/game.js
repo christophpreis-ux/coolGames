@@ -24,7 +24,7 @@ const COYOTE_TIME_MS = 110;        // Gnadenfrist nach Verlassen eines Dachs, in
 // bleibt, nicht dadurch, dass Lücken plötzlich unfair breit werden. --
 const RUN_SPEED_START_FACTOR = 0.3;  // * canvas.width, pro Sekunde
 const RUN_SPEED_MAX_FACTOR = 0.78;
-const RUN_SPEED_ACCEL_FACTOR = 0.0026; // Tempozunahme pro Sekunde^2
+const RUN_SPEED_ACCEL_FACTOR = 0.014; // Tempozunahme pro Sekunde^2 -- erreicht das Maxtempo nach rund 35s
 
 const PLAYER_SCREEN_X_FACTOR = 0.3; // Spieler bleibt fix auf dem Bildschirm, die Welt scrollt
 const DEATH_Y_FACTOR = 1.12;        // Fällt die Figur tiefer, ist der Lauf vorbei
@@ -289,11 +289,19 @@ function updatePhysics(dt, now) {
   const playerScreenX = canvas.width * PLAYER_SCREEN_X_FACTOR;
 
   if (falling) {
+    const prevPlayerY = playerY;
     playerVY += GRAVITY_FACTOR * canvas.height * dt;
     playerY += playerVY * dt;
 
+    // Nur landen, wenn die Dachhöhe in GENAU diesem Frame von oben erreicht
+    // wird (prevPlayerY war noch über dem Dach). Ohne dieses "von oben"-
+    // Kriterium würde ein höheres Gebäude, das unter die feste Spielerposition
+    // scrollt, während man schon TIEFER als sein Dach gefallen ist, die Figur
+    // fälschlich nach oben auf das Dach schnappen lassen -- sah aus wie ein
+    // automatischer Katapultsprung an der Hauswand und machte echtes Springen
+    // überflüssig, weil man so ziemlich jedes Dach "automatisch" erreichte.
     const ground = groundYAt(playerScreenX);
-    if (ground && playerY >= ground.roofY && playerVY >= 0) {
+    if (ground && playerVY >= 0 && prevPlayerY <= ground.roofY && playerY >= ground.roofY) {
       playerY = ground.roofY;
       playerVY = 0;
       falling = false;
