@@ -724,6 +724,12 @@ window.addEventListener("resize", () => {
 // Scene geometry helpers
 // ---------------------------------------------------------------------
 
+// Muss zu bodyH in drawAngler() passen (Kopf bis Fuß, als Anteil der
+// Canvas-Höhe) – gemeinsame Konstante, damit anglerHandPos() die Füße
+// exakt auf die Stegoberfläche (pierTopY) setzen kann, statt im Uferschlamm
+// zu "versinken".
+const ANGLER_BODY_HEIGHT_FACTOR = 0.16;
+
 function waterSurfaceY() {
   return canvas.height * 0.5;
 }
@@ -732,8 +738,14 @@ function bankWidth() {
   return canvas.width * 0.16;
 }
 
+// Oberkante des Stegs (Holzplattform), auf der der Angler tatsächlich
+// steht statt im Übergang zwischen Ufer und Wasser.
+function pierTopY() {
+  return waterSurfaceY() - canvas.height * 0.02;
+}
+
 function anglerHandPos() {
-  return { x: bankWidth() * 0.75, y: waterSurfaceY() - canvas.height * 0.14 };
+  return { x: bankWidth() * 0.75, y: pierTopY() - canvas.height * ANGLER_BODY_HEIGHT_FACTOR + 4 };
 }
 
 function bobberRestPos() {
@@ -1389,6 +1401,46 @@ function drawScene(now) {
   ctx.fill();
   ctx.fillStyle = "#4a3524";
   ctx.fillRect(0, waterY - h * 0.02, bw * 0.7, h * 0.03);
+
+  drawPier(bw, waterY, h);
+}
+
+// Steg: hölzerne Plattform vom Ufer bis übers Wasser hinaus, auf der der
+// Angler wirklich steht (siehe pierTopY/anglerHandPos), statt nur im
+// Übergang zwischen Ufer und Wasser zu stehen. Mit sichtbaren Stützpfählen
+// im Wasser und angedeuteten Planken auf dem Deck.
+function drawPier(bw, waterY, h) {
+  const deckY = pierTopY();
+  const deckThickness = h * 0.016;
+  const x0 = bw * 0.48;
+  const x1 = bw * 1.55;
+
+  // Stützpfähle nur im wasserseitigen Teil des Stegs (der landseitige Teil
+  // liegt auf dem Ufer auf) – bewusst weit genug von der Standposition des
+  // Anglers entfernt, damit ihm kein Pfahl mitten zwischen den Beinen steht.
+  ctx.fillStyle = "#3a2a1c";
+  const postWidth = canvas.width * 0.01;
+  [0.62, 0.82, 0.98].forEach((f) => {
+    const px = x0 + (x1 - x0) * f;
+    ctx.fillRect(px - postWidth / 2, deckY, postWidth, waterY - deckY + h * 0.07);
+  });
+
+  // Deck (Planken) samt dunklerer Kante zur besseren Tiefenwirkung
+  ctx.fillStyle = "#8a5a3b";
+  ctx.fillRect(x0, deckY - deckThickness, x1 - x0, deckThickness);
+  ctx.fillStyle = "#5c3a22";
+  ctx.fillRect(x0, deckY - deckThickness * 0.22, x1 - x0, deckThickness * 0.22);
+
+  // Plankenfugen als dünne, dunkle Linien
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.lineWidth = Math.max(1, canvas.width * 0.0015);
+  const plankGap = (x1 - x0) * 0.16;
+  for (let x = x0 + plankGap * 0.75; x < x1; x += plankGap) {
+    ctx.beginPath();
+    ctx.moveTo(x, deckY - deckThickness);
+    ctx.lineTo(x, deckY);
+    ctx.stroke();
+  }
 }
 
 // Normale Fischform: kopfseitig bei +x, Schwanz bei -x. Mit gegabelter
@@ -2066,7 +2118,7 @@ function drawAngler(now, fallProgress, holdInfo) {
   const hand = anglerHandPos();
   const bodyX = hand.x - 14;
   const shoulderY = hand.y - 4;
-  const bodyH = canvas.height * 0.16;
+  const bodyH = canvas.height * ANGLER_BODY_HEIGHT_FACTOR;
   const torsoH = bodyH * 0.52;
   const hipY = shoulderY + torsoH;
   const feetY = hipY + bodyH * 0.48;
