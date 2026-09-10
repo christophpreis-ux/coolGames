@@ -31,10 +31,10 @@ const ALIEN_EVENT_DURATION = 25; // Sekunden, die das Fenster offen bleibt
 const ALIEN_BANNER_DURATION = 4.5; // Sekunden, die die Meldung eingeblendet bleibt
 
 // Zombie-Event: dasselbe Prinzip wie das Alien-Event (eigene Mutation,
-// erzwungen für die Dauer des Fensters), aber deutlich häufiger und dafür
+// erzwungen für die Dauer des Fensters), aber etwas häufiger und dafür
 // spürbar schwächer – die "billigere" Variante des Alien-Events.
 const ZOMBIE_CHECK_INTERVAL = 60; // Sekunden zwischen den Würfen
-const ZOMBIE_EVENT_CHANCE = 0.2; // 20%
+const ZOMBIE_EVENT_CHANCE = 0.05; // 5%
 const ZOMBIE_EVENT_DURATION = 25; // Sekunden, die das Fenster offen bleibt
 const ZOMBIE_BANNER_DURATION = 4.5; // Sekunden, die die Meldung eingeblendet bleibt
 
